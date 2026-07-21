@@ -1,11 +1,12 @@
 """
-Single-company manual sync: pulls the 47 confirmed financial-statement line
-items for one allowlisted company from Fabric's production.base_ilevel__periodic_data,
+Manual sync: pulls the 47 confirmed financial-statement line items for
+allowlisted companies from Fabric's production.base_ilevel__periodic_data,
 pivots the EAV rows into wide records, and upserts them into
 bronze.income_statement / balance_sheet / cash_flow.
 
 Usage:
-    python scripts/bronze_sync.py <company_id>
+    python scripts/bronze_sync.py <company_id>   # sync one allowlisted company
+    python scripts/bronze_sync.py                # sync every company in company_sync_list
 """
 import argparse
 import os
@@ -182,6 +183,12 @@ def load_company_name(pg_conn, company_id):
     return row[0]
 
 
+def fetch_all_company_ids(pg_conn):
+    cur = pg_conn.cursor()
+    cur.execute("SELECT company_id FROM public.company_sync_list ORDER BY company_id")
+    return [row[0] for row in cur.fetchall()]
+
+
 def fetch_periodic_data(fabric_conn, company_id):
     """Returns list of (data_item_id, period_end, value) for one company,
     scenario='Actual', restricted server-side to the 47 confirmed items."""
@@ -222,46 +229,114 @@ def upsert_records(pg_conn, table, records, batch_id):
         )
 
 
-def sync_company(company_id):
-    batch_id = generate_batch_id()
-
-    pg_conn = get_pg_connection()
+def sync_company_with_conns(company_id, pg_conn, fabric_conn, batch_id):
+    """
+    Syncs one company using already-open connections and a shared batch_id --
+    the unit of work reused by both single-company and full-portfolio runs.
+    A company with no periodic data in Fabric simply produces zero records
+    per table; it is not an error.
+    """
+    company_name = load_company_name(pg_conn, company_id)
+    rows = fetch_periodic_data(fabric_conn, company_id)
+    pivoted = pivot_periodic_rows(rows, company_id, company_name)
     try:
-        company_name = load_company_name(pg_conn, company_id)
-
-        fabric_conn = get_fabric_connection()
-        try:
-            rows = fetch_periodic_data(fabric_conn, company_id)
-        finally:
-            fabric_conn.close()
-
-        pivoted = pivot_periodic_rows(rows, company_id, company_name)
         for table, records in pivoted.items():
             upsert_records(pg_conn, table, records, batch_id)
         pg_conn.commit()
     except Exception:
         pg_conn.rollback()
         raise
-    finally:
-        pg_conn.close()
 
     return {
-        "company_id": company_id,
         "company_name": company_name,
-        "batch_id": batch_id,
         "periods_synced": {table: len(records) for table, records in pivoted.items()},
     }
 
 
+def sync_company(company_id):
+    batch_id = generate_batch_id()
+
+    pg_conn = get_pg_connection()
+    try:
+        fabric_conn = get_fabric_connection()
+        try:
+            summary = sync_company_with_conns(company_id, pg_conn, fabric_conn, batch_id)
+        finally:
+            fabric_conn.close()
+    finally:
+        pg_conn.close()
+
+    return {"company_id": company_id, "batch_id": batch_id, **summary}
+
+
+def run_full_sync(company_ids, sync_one):
+    """
+    Runs sync_one(company_id) for every id in company_ids, isolating failures
+    so one company's error doesn't stop the rest of the run. Returns one
+    result dict per company_id, each tagged with status "ok" or "error".
+    """
+    results = []
+    for company_id in company_ids:
+        try:
+            summary = sync_one(company_id)
+            results.append({"company_id": company_id, "status": "ok", **summary})
+        except Exception as exc:
+            results.append({"company_id": company_id, "status": "error", "error": str(exc)})
+    return results
+
+
+def sync_all_companies():
+    """Syncs every company on the allowlist in a single run, sharing one
+    batch_id and one pair of Fabric/Postgres connections across all of them."""
+    batch_id = generate_batch_id()
+
+    pg_conn = get_pg_connection()
+    try:
+        company_ids = fetch_all_company_ids(pg_conn)
+
+        fabric_conn = get_fabric_connection()
+        try:
+            results = run_full_sync(
+                company_ids,
+                lambda company_id: sync_company_with_conns(company_id, pg_conn, fabric_conn, batch_id),
+            )
+        finally:
+            fabric_conn.close()
+    finally:
+        pg_conn.close()
+
+    return {"batch_id": batch_id, "results": results}
+
+
 def main():
-    parser = argparse.ArgumentParser(description="Sync one allowlisted company's financials into bronze.")
-    parser.add_argument("company_id", type=int, help="Fabric investment_id / company_sync_list.company_id")
+    parser = argparse.ArgumentParser(description="Sync allowlisted companies' financials into bronze.")
+    parser.add_argument(
+        "company_id",
+        type=int,
+        nargs="?",
+        default=None,
+        help="Fabric investment_id / company_sync_list.company_id. Omit to sync every allowlisted company.",
+    )
     args = parser.parse_args()
 
-    summary = sync_company(args.company_id)
-    print(f"Synced {summary['company_name']} (company_id={summary['company_id']}), batch {summary['batch_id']}")
-    for table, count in summary["periods_synced"].items():
-        print(f"  {table}: {count} period(s)")
+    if args.company_id is not None:
+        summary = sync_company(args.company_id)
+        print(f"Synced {summary['company_name']} (company_id={summary['company_id']}), batch {summary['batch_id']}")
+        for table, count in summary["periods_synced"].items():
+            print(f"  {table}: {count} period(s)")
+        return
+
+    run_summary = sync_all_companies()
+    results = run_summary["results"]
+    ok = [r for r in results if r["status"] == "ok"]
+    errors = [r for r in results if r["status"] == "error"]
+
+    print(f"Batch {run_summary['batch_id']}: synced {len(ok)}/{len(results)} companies")
+    for r in ok:
+        counts = ", ".join(f"{table}={count}" for table, count in r["periods_synced"].items())
+        print(f"  OK  company_id={r['company_id']} {r['company_name']}: {counts}")
+    for r in errors:
+        print(f"  ERR company_id={r['company_id']}: {r['error']}")
 
 
 if __name__ == "__main__":

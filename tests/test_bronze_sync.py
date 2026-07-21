@@ -7,7 +7,14 @@ that same item entirely, asserting the two are never confused.
 """
 from datetime import date
 
-from scripts.bronze_sync import DATA_ITEM_COLUMN_MAP, TABLE_COLUMNS, pivot_periodic_rows
+from scripts.bronze_sync import (
+    DATA_ITEM_COLUMN_MAP,
+    TABLE_COLUMNS,
+    fetch_all_company_ids,
+    pivot_periodic_rows,
+    run_full_sync,
+    upsert_records,
+)
 
 COMPANY_ID = 999001
 COMPANY_NAME = "Test Co (fixture)"
@@ -107,3 +114,103 @@ def test_unmapped_data_item_id_is_ignored():
     rows = [(TOTAL_REVENUE_ID, PERIOD, 1), (999_999_999, PERIOD, 1)]
     result = pivot_periodic_rows(rows, COMPANY_ID, COMPANY_NAME)
     assert result["income_statement"][0]["total_revenue"] == 1
+
+
+def test_no_periodic_data_produces_no_records_for_any_table():
+    # A company with zero periodic data available in Fabric must not be an
+    # error -- it simply produces no bronze rows (issue #4 acceptance criteria).
+    result = pivot_periodic_rows([], COMPANY_ID, COMPANY_NAME)
+    assert result == {"income_statement": [], "balance_sheet": [], "cash_flow": []}
+
+
+# -- run_full_sync: full-portfolio orchestration (issue #4) --------------
+
+
+def test_run_full_sync_calls_sync_one_for_every_company_id():
+    calls = []
+
+    def sync_one(company_id):
+        calls.append(company_id)
+        return {"company_name": f"Co {company_id}", "periods_synced": {}}
+
+    company_ids = [1, 2, 3]
+    results = run_full_sync(company_ids, sync_one)
+
+    assert calls == company_ids
+    assert [r["company_id"] for r in results] == company_ids
+    assert all(r["status"] == "ok" for r in results)
+
+
+def test_run_full_sync_isolates_one_companys_failure_from_the_rest():
+    def sync_one(company_id):
+        if company_id == 2:
+            raise ValueError("boom")
+        return {"company_name": f"Co {company_id}", "periods_synced": {}}
+
+    results = run_full_sync([1, 2, 3], sync_one)
+
+    statuses = {r["company_id"]: r["status"] for r in results}
+    assert statuses == {1: "ok", 2: "error", 3: "ok"}
+
+
+def test_run_full_sync_records_error_message_for_failed_company():
+    def sync_one(company_id):
+        raise ValueError("company not on allowlist")
+
+    results = run_full_sync([1], sync_one)
+
+    assert results[0]["status"] == "error"
+    assert results[0]["error"] == "company not on allowlist"
+
+
+def test_run_full_sync_marks_zero_data_company_ok_not_error():
+    # A company with no periodic data in Fabric produces zero periods per
+    # table via pivot_periodic_rows/upsert_records, never an exception --
+    # confirm that reaches run_full_sync as "ok", not "error" (issue #4 AC).
+    def sync_one(company_id):
+        return {"company_name": "Co", "periods_synced": {"income_statement": 0, "balance_sheet": 0, "cash_flow": 0}}
+
+    results = run_full_sync([1], sync_one)
+    assert results[0]["status"] == "ok"
+    assert results[0]["periods_synced"] == {"income_statement": 0, "balance_sheet": 0, "cash_flow": 0}
+
+
+# -- fetch_all_company_ids: real Postgres, rolled back after the test -----
+
+
+def test_fetch_all_company_ids_includes_a_freshly_inserted_row(pg_conn):
+    cur = pg_conn.cursor()
+    cur.execute(
+        "INSERT INTO public.company_sync_list (company_id, company_name) VALUES (%s, %s)",
+        (COMPANY_ID, COMPANY_NAME),
+    )
+    ids = fetch_all_company_ids(pg_conn)
+    assert COMPANY_ID in ids
+
+
+def test_upsert_records_is_idempotent_at_full_scale(pg_conn):
+    # Re-running the sync for the same (company_id, period_end) must update
+    # the existing bronze row in place, never insert a duplicate (issue #4 AC).
+    first_batch = [
+        {
+            "company_id": COMPANY_ID,
+            "company_name": COMPANY_NAME,
+            "period_end": PERIOD,
+            "total_revenue": 100,
+            **{col: None for col in TABLE_COLUMNS["income_statement"] if col != "total_revenue"},
+        }
+    ]
+    second_batch = [{**first_batch[0], "total_revenue": 200}]
+
+    upsert_records(pg_conn, "income_statement", first_batch, "batch_one")
+    upsert_records(pg_conn, "income_statement", second_batch, "batch_two")
+
+    cur = pg_conn.cursor()
+    cur.execute(
+        "SELECT total_revenue, source_batch_id FROM bronze.income_statement "
+        "WHERE company_id = %s AND period_end = %s",
+        (COMPANY_ID, PERIOD),
+    )
+    rows = cur.fetchall()
+    assert len(rows) == 1
+    assert rows[0] == (200, "batch_two")
