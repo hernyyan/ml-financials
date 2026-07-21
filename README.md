@@ -17,7 +17,7 @@ Fill in `.env`:
 - `PG_PASSWORD` — a short-lived Entra ID access token, **not** a static password. Regenerate before each session:
   ```bash
   az login --tenant cd42ad31-bf24-4569-91e9-e4e961d2a99c --allow-no-subscriptions
-  az account get-access-token --resource-type oss-rdbms --query accessToken -o tsv
+  az account get-access-token --resource-type oss-rdbms --query accessToken -o tsv | Set-Clipboard
   ```
   Paste the output into `PG_PASSWORD`.
 
