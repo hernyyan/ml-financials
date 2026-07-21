@@ -141,6 +141,28 @@ def test_run_full_sync_calls_sync_one_for_every_company_id():
     assert all(r["status"] == "ok" for r in results)
 
 
+def test_run_full_sync_calls_on_result_once_per_company_with_running_count():
+    def sync_one(company_id):
+        return {"company_name": f"Co {company_id}", "periods_synced": {}}
+
+    progress_calls = []
+    run_full_sync([1, 2, 3], sync_one, on_result=lambda done, total, result: progress_calls.append((done, total)))
+
+    assert progress_calls == [(1, 3), (2, 3), (3, 3)]
+
+
+def test_run_full_sync_on_result_receives_the_result_just_produced():
+    def sync_one(company_id):
+        if company_id == 2:
+            raise ValueError("boom")
+        return {"company_name": f"Co {company_id}", "periods_synced": {}}
+
+    seen_statuses = []
+    run_full_sync([1, 2, 3], sync_one, on_result=lambda done, total, result: seen_statuses.append(result["status"]))
+
+    assert seen_statuses == ["ok", "error", "ok"]
+
+
 def test_run_full_sync_isolates_one_companys_failure_from_the_rest():
     def sync_one(company_id):
         if company_id == 2:

@@ -11,6 +11,7 @@ Usage:
 import argparse
 import os
 import struct
+import time
 from datetime import datetime, timezone
 
 import psycopg2
@@ -269,23 +270,31 @@ def sync_company(company_id):
     return {"company_id": company_id, "batch_id": batch_id, **summary}
 
 
-def run_full_sync(company_ids, sync_one):
+def run_full_sync(company_ids, sync_one, on_result=None):
     """
     Runs sync_one(company_id) for every id in company_ids, isolating failures
     so one company's error doesn't stop the rest of the run. Returns one
     result dict per company_id, each tagged with status "ok" or "error".
+
+    If on_result is given, it's called after each company as
+    on_result(companies_done, total_companies, result) -- e.g. to print a
+    live progress line. It never affects run_full_sync's own return value.
     """
     results = []
+    total = len(company_ids)
     for company_id in company_ids:
         try:
             summary = sync_one(company_id)
-            results.append({"company_id": company_id, "status": "ok", **summary})
+            result = {"company_id": company_id, "status": "ok", **summary}
         except Exception as exc:
-            results.append({"company_id": company_id, "status": "error", "error": str(exc)})
+            result = {"company_id": company_id, "status": "error", "error": str(exc)}
+        results.append(result)
+        if on_result is not None:
+            on_result(len(results), total, result)
     return results
 
 
-def sync_all_companies():
+def sync_all_companies(on_result=None):
     """Syncs every company on the allowlist in a single run, sharing one
     batch_id and one pair of Fabric/Postgres connections across all of them."""
     batch_id = generate_batch_id()
@@ -299,6 +308,7 @@ def sync_all_companies():
             results = run_full_sync(
                 company_ids,
                 lambda company_id: sync_company_with_conns(company_id, pg_conn, fabric_conn, batch_id),
+                on_result=on_result,
             )
         finally:
             fabric_conn.close()
@@ -306,6 +316,29 @@ def sync_all_companies():
         pg_conn.close()
 
     return {"batch_id": batch_id, "results": results}
+
+
+def make_progress_printer():
+    """
+    Returns an on_result callback for run_full_sync that prints a live,
+    in-place "N/total companies synced (Xs elapsed)" line, timed from the
+    moment the printer is created.
+    """
+    start = time.monotonic()
+
+    def _print(companies_done, total_companies, result):
+        elapsed = time.monotonic() - start
+        status = "OK" if result["status"] == "ok" else "ERR"
+        print(
+            f"\r{companies_done}/{total_companies} companies synced "
+            f"({elapsed:.0f}s elapsed, last: {status} company_id={result['company_id']})",
+            end="",
+            flush=True,
+        )
+        if companies_done == total_companies:
+            print()
+
+    return _print
 
 
 def main():
@@ -326,12 +359,15 @@ def main():
             print(f"  {table}: {count} period(s)")
         return
 
-    run_summary = sync_all_companies()
+    run_start = time.monotonic()
+    run_summary = sync_all_companies(on_result=make_progress_printer())
+    total_elapsed = time.monotonic() - run_start
+
     results = run_summary["results"]
     ok = [r for r in results if r["status"] == "ok"]
     errors = [r for r in results if r["status"] == "error"]
 
-    print(f"Batch {run_summary['batch_id']}: synced {len(ok)}/{len(results)} companies")
+    print(f"Batch {run_summary['batch_id']}: synced {len(ok)}/{len(results)} companies in {total_elapsed:.1f}s")
     for r in ok:
         counts = ", ".join(f"{table}={count}" for table, count in r["periods_synced"].items())
         print(f"  OK  company_id={r['company_id']} {r['company_name']}: {counts}")
