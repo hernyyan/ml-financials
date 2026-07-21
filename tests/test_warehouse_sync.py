@@ -1,13 +1,13 @@
 """
 Pure-function tests for the EAV -> wide-record pivot used by the #3 sync
-script (scripts/bronze_sync.py). No Fabric/Postgres dependency -- per issue
+script (scripts/warehouse_sync.py). No Fabric/Postgres dependency -- per issue
 #1's Testing Decisions, this covers a fully populated period, a partially
 populated period, a period where a real item is 0, and a period missing
 that same item entirely, asserting the two are never confused.
 """
 from datetime import date
 
-from scripts.bronze_sync import (
+from scripts.warehouse_sync import (
     DATA_ITEM_COLUMN_MAP,
     TABLE_COLUMNS,
     fetch_all_company_ids,
@@ -37,11 +37,11 @@ def test_fully_populated_period_fills_every_income_statement_column():
     rows = [
         (data_item_id, PERIOD, 1.0)
         for data_item_id, (table, _) in DATA_ITEM_COLUMN_MAP.items()
-        if table == "income_statement"
+        if table == "bronze_is"
     ]
     result = pivot_periodic_rows(rows, COMPANY_ID, COMPANY_NAME)
-    record = result["income_statement"][0]
-    for column in TABLE_COLUMNS["income_statement"]:
+    record = result["bronze_is"][0]
+    for column in TABLE_COLUMNS["bronze_is"]:
         assert record[column] == 1.0
 
 
@@ -51,7 +51,7 @@ def test_partially_populated_period_leaves_unsubmitted_columns_null():
         (COGS_ID, PERIOD, 400_000),
     ]
     result = pivot_periodic_rows(rows, COMPANY_ID, COMPANY_NAME)
-    record = result["income_statement"][0]
+    record = result["bronze_is"][0]
     assert record["total_revenue"] == 1_000_000
     assert record["cogs"] == 400_000
     assert record["net_income"] is None
@@ -61,7 +61,7 @@ def test_partially_populated_period_leaves_unsubmitted_columns_null():
 def test_genuine_zero_is_preserved_not_coalesced_to_null():
     rows = [(NET_INCOME_ID, PERIOD, 0)]
     result = pivot_periodic_rows(rows, COMPANY_ID, COMPANY_NAME)
-    record = result["income_statement"][0]
+    record = result["bronze_is"][0]
     assert record["net_income"] == 0
     assert record["net_income"] is not None
 
@@ -70,7 +70,7 @@ def test_item_never_submitted_is_null_not_confused_with_zero():
     # net_income never appears in rows at all for this period.
     rows = [(TOTAL_REVENUE_ID, PERIOD, 500_000)]
     result = pivot_periodic_rows(rows, COMPANY_ID, COMPANY_NAME)
-    record = result["income_statement"][0]
+    record = result["bronze_is"][0]
     assert record["net_income"] is None
     assert record["total_revenue"] == 500_000
 
@@ -78,7 +78,7 @@ def test_item_never_submitted_is_null_not_confused_with_zero():
 def test_records_carry_company_id_and_name():
     rows = [(TOTAL_REVENUE_ID, PERIOD, 1)]
     result = pivot_periodic_rows(rows, COMPANY_ID, COMPANY_NAME)
-    record = result["income_statement"][0]
+    record = result["bronze_is"][0]
     assert record["company_id"] == COMPANY_ID
     assert record["company_name"] == COMPANY_NAME
     assert record["period_end"] == PERIOD
@@ -91,7 +91,7 @@ def test_rows_grouped_into_separate_records_per_period():
         (TOTAL_REVENUE_ID, other_period, 200),
     ]
     result = pivot_periodic_rows(rows, COMPANY_ID, COMPANY_NAME)
-    records_by_period = {r["period_end"]: r for r in result["income_statement"]}
+    records_by_period = {r["period_end"]: r for r in result["bronze_is"]}
     assert records_by_period[PERIOD]["total_revenue"] == 100
     assert records_by_period[other_period]["total_revenue"] == 200
 
@@ -105,22 +105,22 @@ def test_rows_split_across_statements():
         (operating_cash_flow_id, PERIOD, 3),
     ]
     result = pivot_periodic_rows(rows, COMPANY_ID, COMPANY_NAME)
-    assert result["income_statement"][0]["total_revenue"] == 1
-    assert result["balance_sheet"][0]["cash_and_equivalents"] == 2
-    assert result["cash_flow"][0]["operating_cash_flow"] == 3
+    assert result["bronze_is"][0]["total_revenue"] == 1
+    assert result["bronze_bs"][0]["cash_and_equivalents"] == 2
+    assert result["bronze_cfs"][0]["operating_cash_flow"] == 3
 
 
 def test_unmapped_data_item_id_is_ignored():
     rows = [(TOTAL_REVENUE_ID, PERIOD, 1), (999_999_999, PERIOD, 1)]
     result = pivot_periodic_rows(rows, COMPANY_ID, COMPANY_NAME)
-    assert result["income_statement"][0]["total_revenue"] == 1
+    assert result["bronze_is"][0]["total_revenue"] == 1
 
 
 def test_no_periodic_data_produces_no_records_for_any_table():
     # A company with zero periodic data available in Fabric must not be an
     # error -- it simply produces no bronze rows (issue #4 acceptance criteria).
     result = pivot_periodic_rows([], COMPANY_ID, COMPANY_NAME)
-    assert result == {"income_statement": [], "balance_sheet": [], "cash_flow": []}
+    assert result == {"bronze_is": [], "bronze_bs": [], "bronze_cfs": []}
 
 
 # -- run_full_sync: full-portfolio orchestration (issue #4) --------------
@@ -190,11 +190,11 @@ def test_run_full_sync_marks_zero_data_company_ok_not_error():
     # table via pivot_periodic_rows/upsert_records, never an exception --
     # confirm that reaches run_full_sync as "ok", not "error" (issue #4 AC).
     def sync_one(company_id):
-        return {"company_name": "Co", "periods_synced": {"income_statement": 0, "balance_sheet": 0, "cash_flow": 0}}
+        return {"company_name": "Co", "periods_synced": {"bronze_is": 0, "bronze_bs": 0, "bronze_cfs": 0}}
 
     results = run_full_sync([1], sync_one)
     assert results[0]["status"] == "ok"
-    assert results[0]["periods_synced"] == {"income_statement": 0, "balance_sheet": 0, "cash_flow": 0}
+    assert results[0]["periods_synced"] == {"bronze_is": 0, "bronze_bs": 0, "bronze_cfs": 0}
 
 
 # -- fetch_all_company_ids: real Postgres, rolled back after the test -----
@@ -219,17 +219,17 @@ def test_upsert_records_is_idempotent_at_full_scale(pg_conn):
             "company_name": COMPANY_NAME,
             "period_end": PERIOD,
             "total_revenue": 100,
-            **{col: None for col in TABLE_COLUMNS["income_statement"] if col != "total_revenue"},
+            **{col: None for col in TABLE_COLUMNS["bronze_is"] if col != "total_revenue"},
         }
     ]
     second_batch = [{**first_batch[0], "total_revenue": 200}]
 
-    upsert_records(pg_conn, "income_statement", first_batch, "batch_one")
-    upsert_records(pg_conn, "income_statement", second_batch, "batch_two")
+    upsert_records(pg_conn, "bronze_is", first_batch, "batch_one")
+    upsert_records(pg_conn, "bronze_is", second_batch, "batch_two")
 
     cur = pg_conn.cursor()
     cur.execute(
-        "SELECT total_revenue, source_batch_id FROM bronze.income_statement "
+        "SELECT total_revenue, source_batch_id FROM warehouse.bronze_is "
         "WHERE company_id = %s AND period_end = %s",
         (COMPANY_ID, PERIOD),
     )

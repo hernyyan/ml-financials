@@ -1,8 +1,10 @@
 # ml-financials
 
-Bronze-layer pipeline that syncs portfolio company financials from Fabric's
-`smc_dwh` warehouse into Postgres, pivoted from EAV rows into wide
-income statement / balance sheet / cash flow tables.
+Pipeline that syncs portfolio company financials from Fabric's `smc_dwh`
+warehouse into a single Postgres `warehouse` schema, pivoted from EAV rows
+into wide income statement / balance sheet / cash flow tables. Within
+`warehouse`, bronze/silver/gold is a naming convention (`bronze_`/`silver_`/
+`gold_` table prefixes), not a physical schema split.
 
 ## Setup
 
@@ -25,10 +27,10 @@ Fill in `.env`:
 
 ```bash
 # one allowlisted company
-python scripts/bronze_sync.py <company_id>
+python scripts/warehouse_sync.py <company_id>
 
 # every allowlisted company (all of public.company_sync_list)
-python scripts/bronze_sync.py
+python scripts/warehouse_sync.py
 ```
 
 Syncing is manual (no scheduler) and idempotent — re-running upserts existing
@@ -51,7 +53,7 @@ or any Postgres GUI client (Azure Data Studio, DBeaver, TablePlus) with the
 same host/port/db/user and SSL required.
 
 Key tables/views:
-- `bronze.income_statement`, `bronze.balance_sheet`, `bronze.cash_flow` — one row per `(company_id, period_end)`.
+- `warehouse.bronze_is`, `warehouse.bronze_bs`, `warehouse.bronze_cfs` — one row per `(company_id, period_end)`.
 - `public.statement_completeness` — coverage/gap triage view (`count_filled`, `count_total`, `is_empty`). Example:
   ```sql
   SELECT * FROM public.statement_completeness

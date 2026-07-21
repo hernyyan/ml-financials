@@ -2,11 +2,11 @@
 Manual sync: pulls the 47 confirmed financial-statement line items for
 allowlisted companies from Fabric's production.base_ilevel__periodic_data,
 pivots the EAV rows into wide records, and upserts them into
-bronze.income_statement / balance_sheet / cash_flow.
+warehouse.bronze_is / bronze_bs / bronze_cfs.
 
 Usage:
-    python scripts/bronze_sync.py <company_id>   # sync one allowlisted company
-    python scripts/bronze_sync.py                # sync every company in company_sync_list
+    python scripts/warehouse_sync.py <company_id>   # sync one allowlisted company
+    python scripts/warehouse_sync.py                # sync every company in company_sync_list
 """
 import argparse
 import os
@@ -24,72 +24,72 @@ load_dotenv()
 FABRIC_SCOPE = "https://database.windows.net/.default"
 SQL_COPT_SS_ACCESS_TOKEN = 1256
 
-# data_item_id -> (bronze table, column). Static per issue #1's Implementation
+# data_item_id -> (warehouse table, column). Static per issue #1's Implementation
 # Decisions: a Python dict is easier to read/edit than a generated SQL pivot
 # when the confirmed-item template changes. Each id's source name (from
 # production.base_ilevel__data_items) is noted alongside for traceability.
 DATA_ITEM_COLUMN_MAP = {
-    # income_statement
-    10717: ("income_statement", "total_revenue"),                    # Total Revenue
-    10001: ("income_statement", "cogs"),                              # COGS
-    11679: ("income_statement", "gross_profit"),                      # Gross Profit
-    11680: ("income_statement", "total_operating_expenses"),          # Total Operating Expenses
-    11682: ("income_statement", "ebitda_standard"),                   # EBITDA - Standard
-    10059: ("income_statement", "ebitda_adjustments"),                # EBITDA Adjustments
-    11705: ("income_statement", "adjusted_ebitda_standard"),          # Adjusted EBITDA - Standard
-    10004: ("income_statement", "depreciation_amortization"),         # Depreciation & Amortization
-    10012: ("income_statement", "interest_expense_income"),           # Interest Expense/(Income)
-    12190: ("income_statement", "other_expense_income"),              # Other Expense / (Income)
-    10014: ("income_statement", "taxes"),                             # Taxes
-    11683: ("income_statement", "net_income"),                        # Net Income (Loss)
-    12212: ("income_statement", "equity_cure"),                       # Equity Cure
-    12211: ("income_statement", "adjusted_ebitda_including_cures"),   # Adjusted EBITDA - Including Cures
-    10722: ("income_statement", "covenant_ebitda"),                   # Covenant EBITDA
-    # balance_sheet
-    10016: ("balance_sheet", "cash_and_equivalents"),                 # Cash & Cash Equivalents
-    10017: ("balance_sheet", "accounts_receivable"),                  # Accounts Receivable
-    10269: ("balance_sheet", "inventory"),                            # Inventory
-    10018: ("balance_sheet", "prepaid_expenses"),                     # Prepaid Expenses
-    10020: ("balance_sheet", "other_current_assets"),                 # Other Current Assets
-    11684: ("balance_sheet", "total_current_assets"),                 # Total Current Assets
-    10270: ("balance_sheet", "property_plant_equipment"),             # Property, Plant & Equipment
-    10271: ("balance_sheet", "accumulated_depreciation"),              # Accumulated Depreciation
-    10023: ("balance_sheet", "goodwill_intangibles"),                 # Goodwill & Intangibles
-    10025: ("balance_sheet", "other_non_current_assets"),              # Other Non-Current Assets
-    11686: ("balance_sheet", "total_non_current_assets"),              # Total Non-Current Assets
-    11687: ("balance_sheet", "total_assets"),                         # Total Assets
-    10028: ("balance_sheet", "accounts_payable"),                     # Accounts Payable
-    10030: ("balance_sheet", "accrued_liabilities"),                  # Accrued Liabilities
-    10031: ("balance_sheet", "deferred_revenue"),                     # Deferred Revenue
-    10730: ("balance_sheet", "revolver_balance_sheet"),               # Revolver - Balance Sheet
-    12179: ("balance_sheet", "current_maturities"),                   # Current Maturities
-    10032: ("balance_sheet", "other_current_liabilities"),             # Other Current Liabilities
-    12192: ("balance_sheet", "total_current_liabilities"),             # Total Current Liabilities
-    10728: ("balance_sheet", "long_term_loans"),                      # Long Term Loans
-    10727: ("balance_sheet", "long_term_leases"),                     # Long Term Leases
-    12191: ("balance_sheet", "other_non_current_liabilities"),        # Other Non-Current Liabilities
-    12194: ("balance_sheet", "total_non_current_liabilities"),        # Total Non-Current Liabilities
-    11689: ("balance_sheet", "total_liabilities"),                    # Total Liabilities
-    10040: ("balance_sheet", "paid_in_capital"),                      # Paid In Capital
-    10041: ("balance_sheet", "retained_earnings"),                    # Retained Earnings
-    12193: ("balance_sheet", "other_equity"),                         # Other Equity
-    11690: ("balance_sheet", "total_equity"),                         # Total Equity
-    # cash_flow
-    10047: ("cash_flow", "operating_cash_flow"),                      # Operating Cash Flow
-    10048: ("cash_flow", "investing_cash_flow"),                      # Investing Cash Flow
-    10049: ("cash_flow", "financing_cash_flow"),                      # Financing Cash Flow
-    10292: ("cash_flow", "capex"),                                    # CAPEX
+    # bronze_is
+    10717: ("bronze_is", "total_revenue"),                    # Total Revenue
+    10001: ("bronze_is", "cogs"),                              # COGS
+    11679: ("bronze_is", "gross_profit"),                      # Gross Profit
+    11680: ("bronze_is", "total_operating_expenses"),          # Total Operating Expenses
+    11682: ("bronze_is", "ebitda_standard"),                   # EBITDA - Standard
+    10059: ("bronze_is", "ebitda_adjustments"),                # EBITDA Adjustments
+    11705: ("bronze_is", "adjusted_ebitda_standard"),          # Adjusted EBITDA - Standard
+    10004: ("bronze_is", "depreciation_amortization"),         # Depreciation & Amortization
+    10012: ("bronze_is", "interest_expense_income"),           # Interest Expense/(Income)
+    12190: ("bronze_is", "other_expense_income"),              # Other Expense / (Income)
+    10014: ("bronze_is", "taxes"),                             # Taxes
+    11683: ("bronze_is", "net_income"),                        # Net Income (Loss)
+    12212: ("bronze_is", "equity_cure"),                       # Equity Cure
+    12211: ("bronze_is", "adjusted_ebitda_including_cures"),   # Adjusted EBITDA - Including Cures
+    10722: ("bronze_is", "covenant_ebitda"),                   # Covenant EBITDA
+    # bronze_bs
+    10016: ("bronze_bs", "cash_and_equivalents"),                 # Cash & Cash Equivalents
+    10017: ("bronze_bs", "accounts_receivable"),                  # Accounts Receivable
+    10269: ("bronze_bs", "inventory"),                            # Inventory
+    10018: ("bronze_bs", "prepaid_expenses"),                     # Prepaid Expenses
+    10020: ("bronze_bs", "other_current_assets"),                 # Other Current Assets
+    11684: ("bronze_bs", "total_current_assets"),                 # Total Current Assets
+    10270: ("bronze_bs", "property_plant_equipment"),             # Property, Plant & Equipment
+    10271: ("bronze_bs", "accumulated_depreciation"),              # Accumulated Depreciation
+    10023: ("bronze_bs", "goodwill_intangibles"),                 # Goodwill & Intangibles
+    10025: ("bronze_bs", "other_non_current_assets"),              # Other Non-Current Assets
+    11686: ("bronze_bs", "total_non_current_assets"),              # Total Non-Current Assets
+    11687: ("bronze_bs", "total_assets"),                         # Total Assets
+    10028: ("bronze_bs", "accounts_payable"),                     # Accounts Payable
+    10030: ("bronze_bs", "accrued_liabilities"),                  # Accrued Liabilities
+    10031: ("bronze_bs", "deferred_revenue"),                     # Deferred Revenue
+    10730: ("bronze_bs", "revolver_balance_sheet"),               # Revolver - Balance Sheet
+    12179: ("bronze_bs", "current_maturities"),                   # Current Maturities
+    10032: ("bronze_bs", "other_current_liabilities"),             # Other Current Liabilities
+    12192: ("bronze_bs", "total_current_liabilities"),             # Total Current Liabilities
+    10728: ("bronze_bs", "long_term_loans"),                      # Long Term Loans
+    10727: ("bronze_bs", "long_term_leases"),                     # Long Term Leases
+    12191: ("bronze_bs", "other_non_current_liabilities"),        # Other Non-Current Liabilities
+    12194: ("bronze_bs", "total_non_current_liabilities"),        # Total Non-Current Liabilities
+    11689: ("bronze_bs", "total_liabilities"),                    # Total Liabilities
+    10040: ("bronze_bs", "paid_in_capital"),                      # Paid In Capital
+    10041: ("bronze_bs", "retained_earnings"),                    # Retained Earnings
+    12193: ("bronze_bs", "other_equity"),                         # Other Equity
+    11690: ("bronze_bs", "total_equity"),                         # Total Equity
+    # bronze_cfs
+    10047: ("bronze_cfs", "operating_cash_flow"),                      # Operating Cash Flow
+    10048: ("bronze_cfs", "investing_cash_flow"),                      # Investing Cash Flow
+    10049: ("bronze_cfs", "financing_cash_flow"),                      # Financing Cash Flow
+    10292: ("bronze_cfs", "capex"),                                    # CAPEX
 }
 
 TABLE_COLUMNS = {
-    "income_statement": [
+    "bronze_is": [
         "total_revenue", "cogs", "gross_profit", "total_operating_expenses",
         "ebitda_standard", "ebitda_adjustments", "adjusted_ebitda_standard",
         "depreciation_amortization", "interest_expense_income", "other_expense_income",
         "taxes", "net_income", "equity_cure", "adjusted_ebitda_including_cures",
         "covenant_ebitda",
     ],
-    "balance_sheet": [
+    "bronze_bs": [
         "cash_and_equivalents", "accounts_receivable", "inventory", "prepaid_expenses",
         "other_current_assets", "total_current_assets", "property_plant_equipment",
         "accumulated_depreciation", "goodwill_intangibles", "other_non_current_assets",
@@ -100,7 +100,7 @@ TABLE_COLUMNS = {
         "total_liabilities", "paid_in_capital", "retained_earnings", "other_equity",
         "total_equity",
     ],
-    "cash_flow": ["operating_cash_flow", "investing_cash_flow", "financing_cash_flow", "capex"],
+    "bronze_cfs": ["operating_cash_flow", "investing_cash_flow", "financing_cash_flow", "capex"],
 }
 
 CONFIRMED_DATA_ITEM_IDS = list(DATA_ITEM_COLUMN_MAP)
@@ -222,7 +222,7 @@ def upsert_records(pg_conn, table, records, batch_id):
         row = {**record, "source_batch_id": batch_id}
         cur.execute(
             f"""
-            INSERT INTO bronze.{table} ({", ".join(columns)}, loaded_at)
+            INSERT INTO warehouse.{table} ({", ".join(columns)}, loaded_at)
             VALUES ({placeholders}, now())
             ON CONFLICT (company_id, period_end) DO UPDATE SET {update_clause}
             """,
@@ -342,7 +342,7 @@ def make_progress_printer():
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Sync allowlisted companies' financials into bronze.")
+    parser = argparse.ArgumentParser(description="Sync allowlisted companies' financials into warehouse.")
     parser.add_argument(
         "company_id",
         type=int,

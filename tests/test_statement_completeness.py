@@ -1,7 +1,7 @@
 """
-Fixture-based tests for public.statement_completeness (migrations/004).
-Rows are inserted directly into bronze and rolled back by the pg_conn
-fixture -- no live Fabric data required.
+Fixture-based tests for public.statement_completeness (migrations/004,
+005). Rows are inserted directly into warehouse and rolled back by the
+pg_conn fixture -- no live Fabric data required.
 """
 from datetime import date
 
@@ -9,10 +9,10 @@ TEST_COMPANY_ID = 999001
 TEST_COMPANY_NAME = "Test Co (fixture)"
 TEST_PERIOD_END = date(2026, 3, 31)
 
-# bronze table -> (view's statement_type label, line-item columns)
+# warehouse table -> (view's statement_type label, line-item columns)
 STATEMENT_TABLES = {
-    "income_statement": (
-        "income_statement",
+    "bronze_is": (
+        "bronze_is",
         [
             "total_revenue", "cogs", "gross_profit", "total_operating_expenses",
             "ebitda_standard", "ebitda_adjustments", "adjusted_ebitda_standard",
@@ -21,8 +21,8 @@ STATEMENT_TABLES = {
             "covenant_ebitda",
         ],
     ),
-    "balance_sheet": (
-        "balance_sheet",
+    "bronze_bs": (
+        "bronze_bs",
         [
             "cash_and_equivalents", "accounts_receivable", "inventory", "prepaid_expenses",
             "other_current_assets", "total_current_assets", "property_plant_equipment",
@@ -35,8 +35,8 @@ STATEMENT_TABLES = {
             "total_equity",
         ],
     ),
-    "cash_flow": (
-        "cash_flow_statement",
+    "bronze_cfs": (
+        "bronze_cfs",
         ["operating_cash_flow", "investing_cash_flow", "financing_cash_flow", "capex"],
     ),
 }
@@ -58,18 +58,18 @@ def _insert_bronze_row(conn, table, **overrides):
     cur = conn.cursor()
     cur.execute(
         f"""
-        INSERT INTO bronze.{table} ({", ".join(insert_columns)}, loaded_at)
+        INSERT INTO warehouse.{table} ({", ".join(insert_columns)}, loaded_at)
         VALUES ({placeholders}, now())
         """,
         row,
     )
 
 
-def _insert_income_statement(conn, **overrides):
-    _insert_bronze_row(conn, "income_statement", **overrides)
+def _insert_bronze_is(conn, **overrides):
+    _insert_bronze_row(conn, "bronze_is", **overrides)
 
 
-def _completeness_row(conn, statement_type="income_statement"):
+def _completeness_row(conn, statement_type="bronze_is"):
     cur = conn.cursor()
     cur.execute(
         """
@@ -83,7 +83,7 @@ def _completeness_row(conn, statement_type="income_statement"):
 
 
 def test_fully_filled_statement_has_full_count_and_is_not_empty(pg_conn):
-    _insert_income_statement(
+    _insert_bronze_is(
         pg_conn,
         total_revenue=1_000_000,
         cogs=400_000,
@@ -108,7 +108,7 @@ def test_fully_filled_statement_has_full_count_and_is_not_empty(pg_conn):
 
 
 def test_partially_null_statement_reports_correct_count_filled(pg_conn):
-    _insert_income_statement(
+    _insert_bronze_is(
         pg_conn,
         total_revenue=1_000_000,
         cogs=400_000,
@@ -122,7 +122,7 @@ def test_partially_null_statement_reports_correct_count_filled(pg_conn):
 
 
 def test_all_zero_or_null_statement_is_flagged_empty_even_with_high_count_filled(pg_conn):
-    _insert_income_statement(
+    _insert_bronze_is(
         pg_conn,
         total_revenue=0,
         cogs=0,
@@ -138,13 +138,13 @@ def test_all_zero_or_null_statement_is_flagged_empty_even_with_high_count_filled
 
 
 def test_genuine_zero_is_not_confused_with_missing(pg_conn):
-    _insert_income_statement(pg_conn, net_income=0)
+    _insert_bronze_is(pg_conn, net_income=0)
     count_filled, _, _ = _completeness_row(pg_conn)
     assert count_filled == 1  # net_income=0 counts as filled, not missing
 
 
 def test_genuine_nonzero_value_anywhere_marks_statement_not_empty(pg_conn):
-    _insert_income_statement(
+    _insert_bronze_is(
         pg_conn,
         total_revenue=0,
         cogs=0,
@@ -157,21 +157,21 @@ def test_genuine_nonzero_value_anywhere_marks_statement_not_empty(pg_conn):
 def test_balance_sheet_branch_reports_correct_count_total_and_filled(pg_conn):
     _insert_bronze_row(
         pg_conn,
-        "balance_sheet",
+        "bronze_bs",
         cash_and_equivalents=500_000,
         accounts_receivable=100_000,
         total_assets=0,  # genuine zero, should count as filled
         # remaining 25 columns left NULL
     )
-    count_filled, count_total, is_empty = _completeness_row(pg_conn, "balance_sheet")
+    count_filled, count_total, is_empty = _completeness_row(pg_conn, "bronze_bs")
     assert count_total == 28
     assert count_filled == 3
     assert is_empty is False
 
 
 def test_balance_sheet_branch_flags_all_null_or_zero_as_empty(pg_conn):
-    _insert_bronze_row(pg_conn, "balance_sheet", cash_and_equivalents=0, total_assets=0)
-    count_filled, count_total, is_empty = _completeness_row(pg_conn, "balance_sheet")
+    _insert_bronze_row(pg_conn, "bronze_bs", cash_and_equivalents=0, total_assets=0)
+    count_filled, count_total, is_empty = _completeness_row(pg_conn, "bronze_bs")
     assert count_total == 28
     assert count_filled == 2  # zeros count as filled, not missing
     assert is_empty is True
@@ -180,21 +180,21 @@ def test_balance_sheet_branch_flags_all_null_or_zero_as_empty(pg_conn):
 def test_cash_flow_branch_reports_correct_count_total_and_filled(pg_conn):
     _insert_bronze_row(
         pg_conn,
-        "cash_flow",
+        "bronze_cfs",
         operating_cash_flow=200_000,
         investing_cash_flow=-50_000,
         financing_cash_flow=0,  # genuine zero, should count as filled
         # capex left NULL
     )
-    count_filled, count_total, is_empty = _completeness_row(pg_conn, "cash_flow_statement")
+    count_filled, count_total, is_empty = _completeness_row(pg_conn, "bronze_cfs")
     assert count_total == 4
     assert count_filled == 3
     assert is_empty is False
 
 
 def test_cash_flow_branch_flags_all_null_or_zero_as_empty(pg_conn):
-    _insert_bronze_row(pg_conn, "cash_flow", operating_cash_flow=0)
-    count_filled, count_total, is_empty = _completeness_row(pg_conn, "cash_flow_statement")
+    _insert_bronze_row(pg_conn, "bronze_cfs", operating_cash_flow=0)
+    count_filled, count_total, is_empty = _completeness_row(pg_conn, "bronze_cfs")
     assert count_total == 4
     assert count_filled == 1
     assert is_empty is True
