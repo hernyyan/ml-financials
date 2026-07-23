@@ -1,0 +1,1792 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Automated Portfolio Monitoring System — Dual-Engine PRD — Star Mountain Capital</title>
+<style>
+*, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+:root {
+  --primary:      #1a1f35;   /* Navy — headings, borders, footer */
+  --secondary:    #64748b;   /* Slate — body text, labels */
+  --tertiary:     #94a3b8;   /* Light slate — meta, placeholders */
+  --border:       #e2e8f0;
+  --border-light: #f1f5f9;
+  --bg:           #ffffff;
+  --bg2:          #f8fafc;
+  --bg3:          #f1f5f9;
+  --teal:         #0891b2;   /* accent / in-progress */
+  --teal-bg:      #e0f2fe;
+  --teal-t:       #0c4a6e;
+  --green:        #16a34a;
+  --green-bg:     #dcfce7;
+  --green-t:      #166534;
+  --pc:           #0f766e;
+  --pc-bg:        #ccfbf1;
+  --purple-bg:    #ede9fe;
+  --purple-t:     #5b21b6;
+  --amber-bg:     #fef3c7;
+  --amber-t:      #92400e;
+  --red-bg:       #fee2e2;
+  --red-t:        #991b1b;
+  --blue-bg:      #dbeafe;
+  --blue-t:       #1e40af;
+}
+html, body { background: var(--bg); color: var(--primary); font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; line-height: 1.5; -webkit-font-smoothing: antialiased; }
+
+/* ---- Layout (SMC house style, per spec §2) ---- */
+.page-header { padding: 36px 48px 0; display: flex; justify-content: space-between; align-items: baseline; }
+.page-header .meta { font-size: 11px; color: var(--secondary); text-transform: uppercase; letter-spacing: 1.5px; }
+.page-title { padding: 14px 48px 0; font-size: 30px; font-weight: 400; color: var(--primary); letter-spacing: -0.5px; line-height: 1.2; }
+.page-subtitle { padding: 6px 48px 0; font-size: 13px; color: var(--secondary); line-height: 1.5; }
+.tab-nav { display: flex; gap: 0; padding: 24px 48px 0; border-bottom: 1px solid var(--border); flex-wrap: wrap; }
+.tab-btn { padding: 10px 18px 12px; font-size: 11px; font-weight: 600; color: var(--secondary); text-transform: uppercase; letter-spacing: 0.8px; background: none; border: none; cursor: pointer; border-bottom: 2px solid transparent; margin-bottom: -1px; transition: color .2s, border-color .2s; font-family: inherit; }
+.tab-btn:hover { color: var(--primary); }
+.tab-btn.active { color: var(--primary); border-bottom-color: var(--primary); }
+.tab-content { display: none; padding: 32px 48px 48px; }
+.tab-content.active { display: block; }
+.section { background:#fff; border:1px solid var(--border); border-radius:8px; padding:32px; margin-bottom:24px; }
+.section-label { font-size:11px; color:var(--secondary); text-transform:uppercase; letter-spacing:1.5px; margin-bottom:12px; display:flex; align-items:center; gap:8px; }
+.section-label::before { content:'\25C6'; font-size:8px; }
+.section-title { font-size:24px; font-weight:400; color:var(--primary); margin-bottom:8px; letter-spacing:-0.5px; }
+.section-desc { font-size:13px; color:var(--secondary); margin-bottom:24px; line-height:1.6; }
+.footer { display:flex; justify-content:space-between; align-items:center; padding:16px 48px; border-top:1px solid var(--primary); margin-top:32px; font-size:11px; color:var(--secondary); letter-spacing:0.5px; text-transform:uppercase; }
+.prose { font-size:13px; color:var(--primary); line-height:1.7; }
+.prose p { margin-bottom:14px; }
+.prose strong { font-weight:600; }
+.prose em { font-style:italic; color:var(--secondary); }
+.callout { border-radius:6px; padding:16px 18px; margin:18px 0; font-size:12px; line-height:1.6; background:var(--bg2); border:1px solid var(--border); }
+.callout .ct { font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:1px; color:var(--teal-t); margin-bottom:6px; }
+.callout .cb { color:var(--secondary); }
+.callout .cb strong { color:var(--primary); }
+.dtable { width:100%; border-collapse:collapse; font-size:12px; }
+.dtable th { text-align:left; font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:0.8px; color:var(--secondary); padding:9px 12px; border-bottom:2px solid var(--border); background:var(--bg2); }
+.dtable td { padding:11px 12px; border-bottom:1px solid var(--border-light); color:var(--primary); vertical-align:top; line-height:1.5; }
+.dtable tr:last-child td { border-bottom:none; }
+
+/* ---- Support classes (house-style layout patterns; mapped to spec token set) ---- */
+.metrics-row { display:flex; gap:48px; margin:6px 0 4px; padding-bottom:20px; border-bottom:1px solid var(--border); flex-wrap:wrap; }
+.metric { display:flex; align-items:baseline; gap:8px; }
+.metric-value { font-size:28px; font-weight:300; color:var(--primary); font-variant-numeric:tabular-nums; }
+.metric-label { font-size:11px; color:var(--secondary); text-transform:uppercase; letter-spacing:0.5px; }
+.grid-2 { display:grid; grid-template-columns:repeat(2,1fr); gap:20px; }
+.grid-3 { display:grid; grid-template-columns:repeat(3,1fr); gap:20px; }
+.insight-card { border:1px solid var(--border); border-radius:4px; padding:20px; }
+.insight-card .insight-header { display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; gap:12px; }
+.insight-card .insight-title { font-size:13px; font-weight:600; color:var(--primary); }
+.insight-card .insight-body { font-size:12px; color:var(--secondary); line-height:1.6; }
+.tag { font-size:11px; font-weight:600; letter-spacing:0.5px; padding:4px 8px; border-radius:3px; text-transform:uppercase; display:inline-block; white-space:nowrap; }
+.tag.ml   { background:var(--purple-bg); color:var(--purple-t); }
+.tag.data { background:var(--green-bg);  color:var(--green-t);  }
+.tag.tech { background:var(--blue-bg);   color:var(--blue-t);   }
+.tag.llm  { background:var(--amber-bg);  color:var(--amber-t);  }
+.tag.out  { background:var(--teal-bg);   color:var(--teal-t);   }
+.tag.warn { background:var(--red-bg);    color:var(--red-t);    }
+
+/* ---- Local helpers (layout wiring only; SMC tokens only) ---- */
+.subhead { font-size:16px; font-weight:600; color:var(--primary); margin:28px 0 6px; letter-spacing:-0.2px; }
+.callout.hl { background:var(--teal-bg); border-color:var(--teal-t); }
+.callout.hl .cb { color:var(--teal-t); }
+.callout.hl .cb strong { color:var(--primary); }
+.callout.warn { background:var(--amber-bg); border-color:var(--amber-t); }
+.callout.warn .ct { color:var(--amber-t); }
+.callout.warn .cb { color:var(--amber-t); }
+.callout.warn .cb strong { color:var(--primary); }
+.fig { margin:22px 0; border:1px solid var(--border); border-radius:8px; padding:20px 18px; background:var(--bg); }
+.fig svg { width:100%; max-width:600px; height:auto; display:block; margin:0 auto; }
+.fig svg text { font-family:-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }
+.fig-cap { font-size:11px; color:var(--tertiary); margin-top:12px; text-transform:uppercase; letter-spacing:1px; }
+.eq { font-family:'SFMono-Regular', ui-monospace, 'Cascadia Mono', Consolas, monospace; background:var(--bg3); color:var(--primary); font-size:12px; padding:1px 6px; border-radius:3px; }
+.placeholder-note { font-size:13px; color:var(--secondary); line-height:1.7; }
+.ref-note { font-size:12px; color:var(--secondary); }
+
+/* ---- SVG role fills / text (color encodes NODE ROLE per spec §3; tokens only) ---- */
+.node      { stroke-width:1; }
+.n-shared  { fill:var(--bg2);       stroke:var(--border);   }
+.n-driver  { fill:var(--purple-bg); stroke:var(--purple-t); }
+.n-derived { fill:var(--bg3);       stroke:var(--border);   }
+.n-addback { fill:var(--amber-bg);  stroke:var(--amber-t);  }
+.n-cov     { fill:var(--green-bg);  stroke:var(--green-t);  }
+.n-conv    { fill:var(--teal-bg);   stroke:var(--teal-t);   }
+.n-alert   { fill:var(--red-bg);    stroke:var(--red-t);    }
+.n-plain   { fill:var(--bg);        stroke:var(--border);   }
+.n-band    { fill:none;             stroke:var(--secondary);stroke-dasharray:4 3; }
+.t-shared  { fill:var(--secondary); }
+.t-driver  { fill:var(--purple-t);  }
+.t-derived { fill:var(--primary);   }
+.t-addback { fill:var(--amber-t);   }
+.t-cov     { fill:var(--green-t);   }
+.t-conv    { fill:var(--teal-t);    }
+.t-alert   { fill:var(--red-t);     }
+.t-mut     { fill:var(--secondary); }
+.t-pri     { fill:var(--primary);   }
+.t-ter     { fill:var(--tertiary);  }
+.link      { fill:none; stroke:var(--secondary); stroke-width:1.2; }
+.link-dash { fill:none; stroke:var(--amber-t);   stroke-width:1.2; stroke-dasharray:4 3; }
+.axis      { fill:none; stroke:var(--secondary); stroke-width:1.2; }
+.thresh    { fill:none; stroke:var(--primary);   stroke-width:1.4; stroke-dasharray:5 3; }
+.arrowhd   { fill:var(--secondary); }
+.band      { fill:var(--teal-bg);   opacity:0.6; }
+.dist-body { fill:var(--green-bg);  stroke:var(--green-t); stroke-width:1.3; }
+.dist-tail { fill:var(--red-bg);    stroke:none; }
+.dist-line { fill:none;             stroke:var(--green-t); stroke-width:1.4; }
+
+@media (max-width: 900px) {
+  .page-header, .page-title, .page-subtitle, .tab-nav, .tab-content { padding-left:20px; padding-right:20px; }
+  .grid-2, .grid-3 { grid-template-columns:1fr; }
+  .metrics-row { gap:24px; }
+  .footer { padding:16px 20px; }
+}
+
+/* ===== Ported Tech Spec & Roadmap styles (from original PRD) ===== */
+.stat-card .val { font-size: 24px; font-weight: 300; color: var(--primary); margin-bottom: 4px; }
+.stat-card .lbl { font-size: 11px; color: var(--secondary); text-transform: uppercase; letter-spacing: 0.5px; }
+.stat-card .sub { font-size: 11px; color: var(--tertiary); margin-top: 4px; }
+.sw-table th { text-align: left; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.8px; color: var(--secondary); padding: 8px 12px; border-bottom: 2px solid var(--border); background: var(--bg2); }
+.sw-table td { padding: 10px 12px; border-bottom: 1px solid var(--border-light); color: var(--primary); vertical-align: top; }
+.sw-table tr:last-child td { border-bottom: none; }
+.sw-table tr:hover td { background: var(--bg2); }
+.sw-cat { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; padding: 3px 7px; border-radius: 3px; display: inline-block; }
+.sw-cat.install { background: var(--blue-bg); color: var(--blue-t); }
+.sw-cat.python { background: var(--purple-bg); color: var(--purple-t); }
+.sw-cat.local { background: var(--amber-bg); color: var(--amber-t); }
+.sw-cat.existing { background: var(--green-bg); color: var(--green-t); }
+.qch { padding: 10px 14px; border-bottom: 0.5px solid var(--border); display: flex; justify-content: space-between; align-items: center; background: var(--bg2); }
+.qct { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; color: var(--primary); }
+.qitem { display: flex; align-items: flex-start; gap: 10px; padding: 7px 14px; border-top: 0.5px solid var(--bg3); }
+.qitem:first-child { border-top: none; }
+.chk { width: 14px; height: 14px; flex-shrink: 0; border: 1.5px solid var(--border); border-radius: 3px; margin-top: 1px; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.15s; }
+.chk.done { background: var(--teal); border-color: var(--teal); }
+.chk.done::after { content: ''; display: block; width: 4px; height: 7px; border: 1.5px solid #fff; border-top: none; border-left: none; transform: rotate(45deg) translate(-1px,-1px); }
+.chk.prog { background: var(--amber-bg); border-color: #d97706; }
+.chk.prog::after { content: ''; display: block; width: 6px; height: 6px; background: #d97706; border-radius: 50%; }
+.qtt { font-size: 11px; color: var(--primary); line-height: 1.4; }
+.qtt.done { color: var(--secondary); text-decoration: line-through; }
+.ms-pill { display: inline-flex; align-items: center; gap: 4px; font-size: 11px; font-weight: 500; color: var(--teal-t); background: var(--teal-bg); padding: 3px 8px; border-radius: 10px; }
+.g-head { display: flex; margin-bottom: 2px; }
+.g-lbl { width: 160px; flex-shrink: 0; }
+.g-months { flex: 1; display: grid; grid-template-columns: repeat(10, 1fr); }
+.g-month { text-align: center; font-size: 10px; font-weight: 500; color: var(--secondary); padding: 4px 2px; border-right: 0.5px solid var(--border); border-bottom: 0.5px solid var(--border); }
+.g-month:last-child { border-right: none; }
+.g-month.now { color: var(--teal-t); background: var(--teal-bg); }
+.g-row { display: flex; align-items: center; margin-bottom: 5px; }
+.g-rl { width: 160px; flex-shrink: 0; padding-right: 12px; }
+.g-rn { font-size: 11px; font-weight: 500; color: var(--primary); }
+.g-rs { font-size: 10px; color: var(--tertiary); display: block; margin-top: 1px; }
+.g-track { flex: 1; position: relative; height: 20px; background: var(--bg2); border-radius: 2px; }
+.bar { position: absolute; top: 2px; bottom: 2px; border-radius: 2px; display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 500; white-space: nowrap; padding: 0 5px; }
+.b-v1 { background: var(--blue-bg); color: var(--blue-t); }
+.b-v2 { background: var(--purple-bg); color: var(--purple-t); }
+.b-v3 { background: var(--green-bg); color: var(--green-t); }
+.b-v4 { background: var(--amber-bg); color: var(--amber-t); }
+.b-v5 { background: var(--pc-bg); color: var(--pc); }
+.g-ms-row { display: flex; margin-bottom: 8px; margin-top: 4px; }
+.g-ms-lbl { width: 160px; flex-shrink: 0; font-size: 10px; color: var(--tertiary); text-transform: uppercase; letter-spacing: 0.5px; }
+.g-ms-track { flex: 1; position: relative; height: 20px; }
+.ms-pin { position: absolute; top: 50%; transform: translateX(-50%) translateY(-50%); font-size: 10px; font-weight: 500; padding: 2px 6px; border-radius: 3px; white-space: nowrap; }
+.leg { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 12px; padding-top: 10px; border-top: 0.5px solid var(--bg3); }
+.leg-i { display: flex; align-items: center; gap: 5px; font-size: 11px; color: var(--secondary); }
+.leg-s { width: 10px; height: 10px; border-radius: 2px; }
+.g-months.q6 { display: flex; }
+.g-months.q6 .g-month { flex: 1; }
+.g-track.q6-bg { background: linear-gradient(to right, var(--bg2) 0, var(--bg2) 100%); }
+.bar.fade { -webkit-mask-image: linear-gradient(to right, #000 55%, transparent 100%); mask-image: linear-gradient(to right, #000 55%, transparent 100%); }
+.bar.fade::after { content: '\2192'; position: absolute; right: 4px; opacity: 0.6; }
+.track-head { display: flex; align-items: center; gap: 10px; margin: 22px 0 10px; flex-wrap: wrap; }
+.track-head .th-name { font-size: 13px; font-weight: 600; color: var(--primary); }
+.track-head .th-tag { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.6px; padding: 3px 8px; border-radius: 3px; }
+.track-head .th-tag.data { background: var(--amber-bg); color: var(--amber-t); }
+.track-head .th-tag.infra { background: var(--blue-bg); color: var(--blue-t); }
+.track-head .th-desc { font-size: 11px; color: var(--tertiary); }
+.g-qgrid { position: absolute; inset: 0; display: flex; pointer-events: none; }
+.g-qgrid span { flex: 1; border-right: 0.5px solid var(--border); }
+.g-qgrid span:last-child { border-right: none; }
+</style>
+</head>
+<body>
+
+<header class="page-header">
+  <div class="brand" style="font-size:13px; font-weight:600; letter-spacing:0.5px; color:var(--primary);">Star Mountain Capital</div>
+  <div class="meta">Confidential</div>
+</header>
+<h1 class="page-title">Automated Portfolio Monitoring System</h1>
+<p class="page-subtitle">Product Requirements Document — Dual-Engine Architecture · Portfolio Monitoring</p>
+
+<nav class="tab-nav">
+  <button class="tab-btn active" data-tab="overview">Overview</button>
+  <button class="tab-btn" data-tab="architecture">System Architecture</button>
+  <button class="tab-btn" data-tab="spine">Finance Spine</button>
+  <button class="tab-btn" data-tab="deterministic">Deterministic Engine</button>
+  <button class="tab-btn" data-tab="probabilistic">Probabilistic Engine</button>
+  <button class="tab-btn" data-tab="covenant">Covenant Projection</button>
+  <button class="tab-btn" data-tab="positioning">Risk Positioning &amp; Monitoring</button>
+  <button class="tab-btn" data-tab="techspec">Tech Spec</button>
+  <button class="tab-btn" data-tab="roadmap">Roadmap</button>
+</nav>
+
+<main>
+  <section class="tab-content active" id="overview">
+
+    <div class="section">
+      <div class="section-label">Overview</div>
+      <div class="section-title">What we are building</div>
+      <div class="section-desc">Star Mountain Capital is building an automated system to monitor the financial health of its lower-middle-market portfolio companies and flag those at risk as early as possible. This document specifies that system as two forecasting engines that run side by side within one shared pipeline.</div>
+
+      <div class="callout hl">
+        <div class="ct">Approach</div>
+        <div class="cb">This PRD documents two forecasting engines that run concurrently within one monitoring system. Both are strong, principled designs that reason about the problem differently. We build both, measure where each performs best through backtesting and live use, and let real data guide which elements survive and whether they eventually combine.</div>
+      </div>
+
+      <div class="prose">
+        <p><strong>The goal is early risk flagging, not prediction.</strong> This reframing is the foundation for nearly every decision that follows, so it belongs first. With only a few years of data per company and an ocean of unobserved macroeconomic and cyclical forces acting outside that data, precisely predicting next period's revenue, COGS, or EBITDA is not achievable — and, crucially, it is not the objective. The objective is to detect, as early as possible, when a company deviates meaningfully from <em>its own</em> expected behavior, and to surface that company to the team while there is still time to act. You do not need to predict the future to notice a departure from normal; you need a model of what normal looks like for each company and a disciplined way to notice when reality pulls away from it. That is closer to anomaly detection than to forecasting, and — unlike precise prediction — it is a bar the available data can actually clear.</p>
+
+        <p><strong>Why two engines.</strong> The best system is not knowable from the whiteboard. It is an empirical question that only backtesting and live performance can answer, because machine-learning outcomes are driven at least as much by the data as by the architecture. Committing to a single design up front is therefore premature. This is worth stating plainly, because it is the same intellectual move made twice at different scales: the Deterministic Engine already runs many candidate models in parallel for each target and lets performance prune them — precisely because it cannot see the best model in advance. Running two whole engines is that identical logic one level up. The four-way model bake-off <em>within</em> an engine and the two-engine system <em>around</em> them are the same idea — start wide, let evidence narrow — applied at two scales. Framed this way, the whole system is a structured exploration that converges through evidence rather than a fixed cathedral poured in one go. It also reframes the "arbitrary decision registers" documented in each engine tab: they are not a list of guesses to apologize for, they are an explicit research agenda — the enumerated set of questions backtesting exists to resolve.</p>
+
+        <p><strong>How the two engines relate.</strong> The engines are far more alike than different. They share the same data pipeline, the same finance spine (which line items are modeled versus derived by accounting identity), the same covenant framework, the same monitoring quadrant, and the same dashboard. They differ in exactly one stage — the forecasting core. One produces point estimates; the other produces full probability distributions. Everything upstream of that fork and everything downstream of it is shared. This document is organized to make that shape obvious: shared tabs are stated once and apply to both engines, and each engine tab describes only its own forecasting core.</p>
+
+        <p><em>Relationship between the two engines.</em> The <strong>Deterministic Engine</strong> is the established design — the ensemble of regressions and classifiers producing point estimates — and it is preserved here in full, faithfully and as an equal. The <strong>Probabilistic Engine</strong> is introduced alongside it, together with the shared architecture that lets both engines feed a single rating system. The two are documented within one coherent system, and this PRD is explicit throughout about where they are identical, where they fork, and how their outputs relate. The Tech Spec and Roadmap tabs are retained from the existing PRD unchanged.</p>
+
+        <p><strong>Integration, down the line.</strong> "Integrating the two engines" can mean two quite different things, and it is worth separating them — both are forward-looking and explicitly conjecture pending what backtesting reveals. The first is an <strong>ensemble at the output:</strong> because the convergence architecture already forces both engines to express themselves as the same two risk axes, their outputs can simply be blended — a company flagged by both ranks higher than one flagged by either alone. This is clean and near-term achievable precisely because both engines already exit into the same two numbers. The second is to <strong>fuse the internals:</strong> for example, using the Deterministic Engine's rich learned feature relationships inside the Probabilistic Engine's state structure, or feeding one engine's output as an input to the other. This is deeper and potentially more powerful, but it is a genuine research project, not a configuration change — point estimates and full distributions do not trivially merge, which is exactly why internal fusion is a real open question rather than a switch we can flip. We state the output ensemble as a realistic near-term option and internal fusion as aspirational and contingent on evidence.</p>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-label">Key metrics</div>
+      <div class="section-title">System at a glance</div>
+      <div class="metrics-row">
+        <div class="metric"><span class="metric-value">50–100</span><span class="metric-label">Portfolio Companies</span></div>
+        <div class="metric"><span class="metric-value">2</span><span class="metric-label">Concurrent Engines</span></div>
+        <div class="metric"><span class="metric-value">1</span><span class="metric-label">Shared Dashboard (Opstream)</span></div>
+        <div class="metric"><span class="metric-value">Monthly</span><span class="metric-label">Refresh Cadence</span></div>
+        <div class="metric"><span class="metric-value">0</span><span class="metric-label">Manual Steps at Runtime</span></div>
+      </div>
+      <div class="ref-note" style="margin-top:16px;">Provisional figures, consistent across both engines. The two engines run within a single monthly pipeline and present through one interface, so from the team's perspective there is one system, not two.</div>
+    </div>
+
+    <div class="section">
+      <div class="section-label">Reading guide</div>
+      <div class="section-title">How to read this document</div>
+      <div class="section-desc">This PRD is written for two audiences at once. Every technical concept is anchored in plain language and a diagram before its mechanics appear, so the document reads fully either way.</div>
+      <div class="grid-2">
+        <div class="insight-card">
+          <div class="insight-header"><div class="insight-title">For the technical reader</div><span class="tag tech">Depth</span></div>
+          <div class="insight-body">The full modeling depth lives in the two engine tabs and the arbitrary-decision registers at the end of each. The Probabilistic Engine tab layers plain-language intuition, then mechanism, then diagram for state-space models, the Kalman filter, and the hierarchical prior. The registers enumerate every free parameter, where it lives, its provisional value, and how it resolves — the explicit research agenda for backtesting.</div>
+        </div>
+        <div class="insight-card">
+          <div class="insight-header"><div class="insight-title">For the investment committee</div><span class="tag out">Overview</span></div>
+          <div class="insight-body">The Overview, System Architecture, and Risk Positioning &amp; Monitoring tabs give the complete picture without requiring the math. They explain what the system does, why two engines, how a company gets flagged, and what the monitoring quadrant means for action. Every technical idea is introduced in words and a diagram first, so no equations are needed to follow the argument.</div>
+        </div>
+      </div>
+    </div>
+
+  </section>
+  <section class="tab-content" id="architecture">
+
+    <div class="section">
+      <div class="section-label">System architecture</div>
+      <div class="section-title">The hourglass</div>
+      <div class="section-desc">The whole system has the shape of an hourglass: shared inputs narrow down to a single finance spine, fork into the two engines at the one stage where point estimates and distributions are genuinely incompatible, then reconverge and share everything downstream. This diagram is the spine of the entire document — every later tab is a zoom into one of its bands.</div>
+
+      <div class="fig">
+        <svg viewBox="0 0 680 792" width="100%" role="img" aria-label="Hourglass pipeline diagram: shared stages narrow to the finance spine, fork into two engines, then reconverge into shared downstream stages.">
+          <defs>
+            <marker id="ah1" markerWidth="9" markerHeight="9" refX="6" refY="3" orient="auto" markerUnits="userSpaceOnUse">
+              <path class="arrowhd" d="M0 0 L6 3 L0 6 Z"/>
+            </marker>
+          </defs>
+
+          <!-- Zone legend (by position, NOT node fill) -->
+          <text class="t-mut" x="40" y="16" font-size="11" font-weight="700">Pipeline zones (by position, not color):</text>
+          <rect class="node n-plain" x="40" y="26" width="12" height="10" rx="2"/>
+          <text class="t-mut" x="58" y="35" font-size="11">Shared — single column</text>
+          <rect class="node n-plain" x="200" y="26" width="7" height="10" rx="1"/>
+          <rect class="node n-plain" x="209" y="26" width="7" height="10" rx="1"/>
+          <text class="t-mut" x="226" y="35" font-size="11">Forked — two engines side by side</text>
+          <rect class="node n-plain" x="444" y="26" width="12" height="10" rx="2"/>
+          <text class="t-mut" x="462" y="35" font-size="11">Convergent — single column</text>
+
+          <!-- Shared top: single column -->
+          <rect class="node n-shared" x="140" y="52" width="400" height="46" rx="6"/>
+          <text class="t-shared" x="340" y="72" text-anchor="middle" font-size="13" font-weight="600">Data foundation</text>
+          <text class="t-shared" x="340" y="88" text-anchor="middle" font-size="12">Clean, templated financials</text>
+          <path class="link" d="M340 98 L340 109" marker-end="url(#ah1)"/>
+
+          <rect class="node n-shared" x="140" y="110" width="400" height="46" rx="6"/>
+          <text class="t-shared" x="340" y="130" text-anchor="middle" font-size="13" font-weight="600">Feature construction</text>
+          <text class="t-shared" x="340" y="146" text-anchor="middle" font-size="12">Drivers, ratios, cross-sectional context</text>
+          <path class="link" d="M340 156 L340 167" marker-end="url(#ah1)"/>
+
+          <rect class="node n-shared" x="140" y="168" width="400" height="46" rx="6"/>
+          <text class="t-shared" x="340" y="188" text-anchor="middle" font-size="13" font-weight="600">Finance spine</text>
+          <text class="t-shared" x="340" y="204" text-anchor="middle" font-size="12">Five drivers, identities, addback rules</text>
+
+          <!-- Fork arrows -->
+          <path class="link" d="M305 214 L200 241" marker-end="url(#ah1)"/>
+          <path class="link" d="M375 214 L476 241" marker-end="url(#ah1)"/>
+
+          <!-- LEFT engine container -->
+          <rect class="node n-plain" x="56" y="244" width="270" height="220" rx="8"/>
+          <text class="t-pri" x="191" y="264" text-anchor="middle" font-size="13" font-weight="700">Deterministic Engine</text>
+          <text class="t-mut" x="191" y="280" text-anchor="middle" font-size="11">Forecast core · point estimates</text>
+          <rect class="node n-driver" x="68" y="292" width="246" height="32" rx="5"/>
+          <text class="t-driver" x="191" y="312" text-anchor="middle" font-size="12">Driver regressions + model selection</text>
+          <rect class="node n-addback" x="68" y="330" width="246" height="32" rx="5"/>
+          <text class="t-addback" x="191" y="350" text-anchor="middle" font-size="12">Addback treatment (fixed decay)</text>
+          <rect class="node n-derived" x="68" y="368" width="246" height="32" rx="5"/>
+          <text class="t-derived" x="191" y="388" text-anchor="middle" font-size="12">Cascade assembly</text>
+          <rect class="node n-derived" x="68" y="406" width="246" height="32" rx="5"/>
+          <text class="t-derived" x="191" y="426" text-anchor="middle" font-size="12">Credit classifier &#8594; point</text>
+
+          <!-- RIGHT engine container -->
+          <rect class="node n-plain" x="350" y="244" width="270" height="220" rx="8"/>
+          <text class="t-pri" x="485" y="264" text-anchor="middle" font-size="13" font-weight="700">Probabilistic Engine</text>
+          <text class="t-mut" x="485" y="280" text-anchor="middle" font-size="11">Forecast core · distributions</text>
+          <rect class="node n-driver" x="362" y="292" width="246" height="32" rx="5"/>
+          <text class="t-driver" x="485" y="312" text-anchor="middle" font-size="12">State model + hierarchical prior</text>
+          <rect class="node n-derived" x="362" y="330" width="246" height="32" rx="5"/>
+          <text class="t-derived" x="485" y="350" text-anchor="middle" font-size="12">Kalman update loop</text>
+          <rect class="node n-derived" x="362" y="368" width="246" height="32" rx="5"/>
+          <text class="t-derived" x="485" y="388" text-anchor="middle" font-size="12">Distributional cascade (Monte Carlo)</text>
+          <rect class="node n-derived" x="362" y="406" width="246" height="32" rx="5"/>
+          <text class="t-derived" x="485" y="426" text-anchor="middle" font-size="12">Credit state &#8594; distribution</text>
+
+          <!-- Convergence arrows -->
+          <path class="link" d="M191 464 L330 491" marker-end="url(#ah1)"/>
+          <path class="link" d="M485 464 L350 491" marker-end="url(#ah1)"/>
+
+          <!-- Convergent + shared bottom: single column -->
+          <rect class="node n-cov" x="140" y="494" width="400" height="48" rx="6"/>
+          <text class="t-cov" x="340" y="514" text-anchor="middle" font-size="13" font-weight="600">Covenant projection</text>
+          <text class="t-cov" x="340" y="531" text-anchor="middle" font-size="12">Probability of breach</text>
+          <path class="link" d="M340 542 L340 553" marker-end="url(#ah1)"/>
+
+          <rect class="node n-conv" x="140" y="554" width="400" height="50" rx="6"/>
+          <text class="t-conv" x="340" y="575" text-anchor="middle" font-size="13" font-weight="600">Risk positioning</text>
+          <text class="t-conv" x="340" y="591" text-anchor="middle" font-size="12">Depth + velocity · rating reconciliation</text>
+          <path class="link" d="M340 604 L340 615" marker-end="url(#ah1)"/>
+
+          <rect class="node n-shared" x="140" y="616" width="400" height="40" rx="6"/>
+          <text class="t-shared" x="340" y="640" text-anchor="middle" font-size="13" font-weight="600">Monitoring quadrant</text>
+          <path class="link" d="M340 656 L340 667" marker-end="url(#ah1)"/>
+
+          <rect class="node n-shared" x="140" y="668" width="400" height="40" rx="6"/>
+          <text class="t-shared" x="340" y="692" text-anchor="middle" font-size="13" font-weight="600">Dashboard &amp; feedback (Opstream)</text>
+
+          <!-- Role legend -->
+          <rect class="node n-shared"  x="40"  y="728" width="12" height="12" rx="2"/>
+          <text class="t-mut" x="58"  y="738" font-size="11">Shared / structural</text>
+          <rect class="node n-driver"  x="230" y="728" width="12" height="12" rx="2"/>
+          <text class="t-mut" x="248" y="738" font-size="11">Modeled driver</text>
+          <rect class="node n-derived" x="410" y="728" width="12" height="12" rx="2"/>
+          <text class="t-mut" x="428" y="738" font-size="11">Derived by identity</text>
+          <rect class="node n-addback" x="40"  y="750" width="12" height="12" rx="2"/>
+          <text class="t-mut" x="58"  y="760" font-size="11">Addback-related</text>
+          <rect class="node n-cov"     x="230" y="750" width="12" height="12" rx="2"/>
+          <text class="t-mut" x="248" y="760" font-size="11">Covenant / breach</text>
+          <rect class="node n-conv"    x="410" y="750" width="12" height="12" rx="2"/>
+          <text class="t-mut" x="428" y="760" font-size="11">Convergent stage</text>
+        </svg>
+        <div class="fig-cap">Diagram 1 — The hourglass. Color encodes node role, identically on both engines; the engines are separated by position, not color.</div>
+      </div>
+
+      <div class="prose">
+        <p>Read the diagram top to bottom. The <strong>shared top</strong> narrows: raw financials are cleaned and templated, features are constructed, and everything funnels into a single <strong>finance spine</strong> that fixes which line items are genuinely modeled and which are derived by accounting identity. Up to this point there is only one pipeline, and it is identical for both engines.</p>
+        <p>At the finance spine the pipeline <strong>forks</strong> — and it forks at exactly one stage, the forecasting core, because that is the only place where the two engines are genuinely incompatible. One core treats each driver as a single number and carries points through the identities; the other treats each driver as a random variable and carries distributions. Everything else they could share, they do share.</p>
+        <p>Below the fork the pipeline <strong>reconverges.</strong> Both engines exit into the same covenant projection and the same risk positioning stage, which reconciles their outputs onto the firm's rating scale and places each company on the monitoring quadrant, and both present through the same dashboard. The one subtlety to hold onto: although the fork is a single stage, its <em>consequences</em> ripple downstream. Because one engine hands over points and the other hands over distributions, covenant projection and risk positioning must each accept two kinds of input — a point path or a full distribution — even though the framework around them is shared. That is why those two stages sit at the neck of the hourglass rather than cleanly on one side of the fork.</p>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-label">System architecture</div>
+      <div class="section-title">The unified stage spine</div>
+      <div class="section-desc">The same pipeline, stage by stage, showing where the two engines are identical, where they fork, and where they reconverge.</div>
+      <table class="dtable">
+        <thead>
+          <tr><th style="width:20%;">Stage</th><th style="width:22%;">Shared / Forked / Convergent</th><th style="width:29%;">Deterministic Engine</th><th style="width:29%;">Probabilistic Engine</th></tr>
+        </thead>
+        <tbody>
+          <tr><td><strong>Data foundation</strong></td><td>Shared</td><td>Same clean, templated data</td><td>Same clean, templated data</td></tr>
+          <tr><td><strong>Feature construction</strong></td><td>Shared</td><td>Ratios, growth, working-capital metrics</td><td>Same inputs, scale-free framing</td></tr>
+          <tr><td><strong>Finance spine</strong></td><td>Shared</td><td>Five modeled drivers, identities</td><td>Same five drivers, identities</td></tr>
+          <tr><td><strong>Forecast core</strong></td><td><strong>Forked</strong></td><td>Regression ensemble &#8594; points</td><td>State-space + hierarchy &#8594; distributions</td></tr>
+          <tr><td><strong>Covenant projection</strong></td><td>Forked calc, shared framework</td><td>Headroom on the point path</td><td>P(breach) via Monte Carlo</td></tr>
+          <tr><td><strong>Risk positioning</strong></td><td><strong>Convergent</strong></td><td>Prepares point inputs</td><td>Prepares distribution inputs</td></tr>
+          <tr><td><strong>Monitoring quadrant</strong></td><td>Shared</td><td>Same 2&#215;2 axes</td><td>Same 2&#215;2 axes</td></tr>
+          <tr><td><strong>Interpretation &amp; narrative</strong></td><td>Shared</td><td>LLM reads the outputs</td><td>LLM reads the distribution</td></tr>
+          <tr><td><strong>Dashboard &amp; feedback</strong></td><td>Shared</td><td>Opstream, calibration loop</td><td>Same</td></tr>
+        </tbody>
+      </table>
+      <div class="prose" style="margin-top:18px;">
+        <p>The parallelism lives at the <strong>stage</strong> level, not necessarily at the node level. Both engines have a "forecast core," but their internal structure legitimately differs: the Deterministic Engine has a model-selection step the Probabilistic Engine does not need, and the Probabilistic Engine has a hierarchical-prior step the Deterministic Engine does not have. That asymmetry is honest, and the hourglass accommodates it precisely because both engines — whatever their internal shape — still exit into the same covenant projection and the same risk positioning stage.</p>
+      </div>
+    </div>
+
+  </section>
+  <section class="tab-content" id="spine">
+
+    <div class="section">
+      <div class="section-label">Finance spine · shared</div>
+      <div class="section-title">Modeled drivers vs. derived lines</div>
+      <div class="section-desc">This tab is stated once and shared by both engines. It grounds the whole system in the actual accounting: both engines model the same handful of genuine drivers and derive every downstream line by the same identities. Only the representation differs — a point in one engine, a distribution in the other.</div>
+
+      <div class="prose">
+        <p>The governing principle is simple: <strong>model the genuine drivers, and derive everything that is an accounting identity.</strong> A line that is defined by arithmetic — gross profit, EBITDA, free cash flow — must never be independently forecast. If it were, the statements would stop tying, and you would be injecting model error into a place where arithmetic should reign. Deriving these lines instead of forecasting them guarantees two things that matter enormously for a credit tool: <strong>internal consistency</strong> (the statements always tie, every period, by construction) and <strong>interpretability</strong> (every covenant flag traces back to a specific driver that moved, not to an opaque blend of forecasts).</p>
+        <p><strong>The five modeled drivers</strong> are Revenue, Gross Margin %, OpEx, Working-Capital turnover (DSO / DIO / DPO), and Capex. Everything else follows from them by identity:</p>
+        <p style="padding-left:6px; border-left:2px solid var(--border);">
+          COGS = Revenue &#215; (1 &#8722; Gross Margin %)<br>
+          Gross Profit = Revenue &#8722; COGS<br>
+          Reported EBITDA = Gross Profit &#8722; OpEx<br>
+          Adjusted EBITDA = Reported EBITDA + Addbacks<br>
+          Working-Capital Change = &#916;(turnover-implied working capital)<br>
+          Interest Expense = debt balance &#215; applicable rate (from each PortCo's credit-agreement terms)<br>
+          Free Cash Flow = Adj. EBITDA &#8722; Capex &#8722; &#916;WC &#8722; Interest &#8722; Cash Taxes<br>
+          Net Debt = prior Net Debt &#8722; FCF + revolver draws<br>
+          Covenant ratios = functions of the above
+        </p>
+        <p><strong>Why we transform the drivers.</strong> We express the drivers in scale-free or transformed terms — but it is worth being precise about the reason, because the obvious one is not the operative one. It is <em>not</em> primarily for cross-company comparability; that motivation dissolves once we decide to pool <em>models</em> rather than raw numbers (see the Probabilistic Engine tab). The operative reason is that each company's own model behaves far better numerically in transformed space, for three concrete reasons. First, <strong>financial growth is multiplicative</strong> — revenue grows by roughly 3% a month, not by a fixed number of dollars a month — and a linear model wants additive dynamics, so we work in log or growth space where multiplicative growth becomes additive. Second, <strong>variance grows with company size</strong> — a larger company has larger absolute swings — and log space stabilizes that, so the noise looks roughly constant regardless of scale. Third, <strong>log space enforces positivity</strong> — revenue cannot go negative, and modeling its logarithm makes that impossible by construction.</p>
+        <p>So Revenue is modeled as log revenue; Gross Margin as a rate (optionally logit-transformed, since it is a bounded proportion); OpEx as a log or as a ratio to revenue (which captures operating leverage directly); and Capex often as a percentage of revenue. The exact per-line representation is a knob — <em>(provisional — backtest-determined)</em>.</p>
+      </div>
+
+      <div class="fig">
+        <svg viewBox="0 0 680 560" width="100%" role="img" aria-label="Finance spine: five modeled drivers feed a cascade of derived lines by accounting identity, which feed the covenant ratios.">
+          <defs>
+            <marker id="ah2" markerWidth="9" markerHeight="9" refX="6" refY="3" orient="auto" markerUnits="userSpaceOnUse">
+              <path class="arrowhd" d="M0 0 L6 3 L0 6 Z"/>
+            </marker>
+          </defs>
+
+          <!-- Column headers -->
+          <text class="t-driver"  x="138" y="46" text-anchor="middle" font-size="11" font-weight="700">MODELED DRIVERS</text>
+          <text class="t-derived" x="340" y="46" text-anchor="middle" font-size="11" font-weight="700">DERIVED BY IDENTITY</text>
+          <text class="t-cov"     x="554" y="46" text-anchor="middle" font-size="11" font-weight="700">COVENANT RATIOS</text>
+
+          <!-- Co-movement dashed links (left margin) -->
+          <path class="link-dash" d="M60 96 C 48 132 48 190 60 232"/>
+          <path class="link-dash" d="M60 104 C 42 190 42 258 60 326"/>
+
+          <!-- Col A: drivers (purple) -->
+          <rect class="node n-driver" x="60" y="70" width="156" height="46" rx="6"/>
+          <text class="t-driver" x="138" y="90" text-anchor="middle" font-size="13" font-weight="600">Revenue</text>
+          <text class="t-driver" x="138" y="106" text-anchor="middle" font-size="11">log revenue</text>
+
+          <rect class="node n-driver" x="60" y="140" width="156" height="46" rx="6"/>
+          <text class="t-driver" x="138" y="160" text-anchor="middle" font-size="13" font-weight="600">Gross margin %</text>
+          <text class="t-driver" x="138" y="176" text-anchor="middle" font-size="11">bounded rate (logit)</text>
+
+          <rect class="node n-driver" x="60" y="210" width="156" height="46" rx="6"/>
+          <text class="t-driver" x="138" y="230" text-anchor="middle" font-size="13" font-weight="600">OpEx</text>
+          <text class="t-driver" x="138" y="246" text-anchor="middle" font-size="11">log · ratio to revenue</text>
+
+          <rect class="node n-driver" x="60" y="300" width="156" height="46" rx="6"/>
+          <text class="t-driver" x="138" y="320" text-anchor="middle" font-size="13" font-weight="600">Working-capital turnover</text>
+          <text class="t-driver" x="138" y="336" text-anchor="middle" font-size="11">DSO · DIO · DPO</text>
+
+          <rect class="node n-driver" x="60" y="380" width="156" height="46" rx="6"/>
+          <text class="t-driver" x="138" y="400" text-anchor="middle" font-size="13" font-weight="600">Capex</text>
+          <text class="t-driver" x="138" y="416" text-anchor="middle" font-size="11">% of revenue</text>
+
+          <!-- Col B: derived (gray) + Adj EBITDA (amber) -->
+          <rect class="node n-derived" x="250" y="70" width="180" height="46" rx="6"/>
+          <text class="t-derived" x="340" y="90" text-anchor="middle" font-size="13" font-weight="600">COGS</text>
+          <text class="t-mut" x="340" y="106" text-anchor="middle" font-size="11">Rev &#215; (1 &#8722; margin)</text>
+
+          <rect class="node n-derived" x="250" y="140" width="180" height="46" rx="6"/>
+          <text class="t-derived" x="340" y="160" text-anchor="middle" font-size="13" font-weight="600">Gross profit</text>
+          <text class="t-mut" x="340" y="176" text-anchor="middle" font-size="11">Rev &#8722; COGS</text>
+
+          <rect class="node n-derived" x="250" y="210" width="180" height="46" rx="6"/>
+          <text class="t-derived" x="340" y="230" text-anchor="middle" font-size="13" font-weight="600">Reported EBITDA</text>
+          <text class="t-mut" x="340" y="246" text-anchor="middle" font-size="11">GP &#8722; OpEx</text>
+
+          <rect class="node n-addback" x="250" y="280" width="180" height="46" rx="6"/>
+          <text class="t-addback" x="340" y="300" text-anchor="middle" font-size="13" font-weight="600">Adjusted EBITDA</text>
+          <text class="t-addback" x="340" y="316" text-anchor="middle" font-size="11">+ addbacks</text>
+
+          <rect class="node n-derived" x="250" y="360" width="180" height="48" rx="6"/>
+          <text class="t-derived" x="340" y="380" text-anchor="middle" font-size="13" font-weight="600">Free cash flow</text>
+          <text class="t-mut" x="340" y="396" text-anchor="middle" font-size="11">&#8722; capex &#8722; &#916;WC &#8722; int &#8722; tax</text>
+
+          <rect class="node n-derived" x="250" y="440" width="180" height="46" rx="6"/>
+          <text class="t-derived" x="340" y="460" text-anchor="middle" font-size="13" font-weight="600">Net debt</text>
+          <text class="t-mut" x="340" y="476" text-anchor="middle" font-size="11">prior &#8722; FCF + draws</text>
+
+          <!-- Col C: covenants (green) -->
+          <rect class="node n-cov" x="474" y="300" width="162" height="48" rx="6"/>
+          <text class="t-cov" x="555" y="320" text-anchor="middle" font-size="13" font-weight="600">Leverage ratio</text>
+          <text class="t-cov" x="555" y="336" text-anchor="middle" font-size="11">Net debt &#247; Adj. EBITDA</text>
+
+          <rect class="node n-cov" x="474" y="400" width="162" height="48" rx="6"/>
+          <text class="t-cov" x="555" y="420" text-anchor="middle" font-size="13" font-weight="600">Coverage / FCCR</text>
+          <text class="t-cov" x="555" y="436" text-anchor="middle" font-size="11">FCF &#247; fixed charges</text>
+
+          <!-- Driver -> derived feed arrows -->
+          <path class="link" d="M216 90 L249 92" marker-end="url(#ah2)"/>
+          <path class="link" d="M216 158 L249 104" marker-end="url(#ah2)"/>
+          <path class="link" d="M216 230 L249 232" marker-end="url(#ah2)"/>
+          <path class="link" d="M216 320 L249 378" marker-end="url(#ah2)"/>
+          <path class="link" d="M216 400 L249 392" marker-end="url(#ah2)"/>
+
+          <!-- Cascade (vertical) -->
+          <path class="link" d="M340 116 L340 139" marker-end="url(#ah2)"/>
+          <path class="link" d="M340 186 L340 209" marker-end="url(#ah2)"/>
+          <path class="link" d="M340 256 L340 279" marker-end="url(#ah2)"/>
+          <path class="link" d="M340 326 L340 359" marker-end="url(#ah2)"/>
+          <path class="link" d="M340 408 L340 439" marker-end="url(#ah2)"/>
+
+          <!-- Derived -> covenant arrows -->
+          <path class="link" d="M430 300 L473 320" marker-end="url(#ah2)"/>
+          <path class="link" d="M430 460 L473 335" marker-end="url(#ah2)"/>
+          <path class="link" d="M430 384 L473 418" marker-end="url(#ah2)"/>
+
+          <!-- Legend -->
+          <rect class="node n-driver"  x="60"  y="512" width="12" height="12" rx="2"/>
+          <text class="t-mut" x="78"  y="522" font-size="11">Modeled driver</text>
+          <rect class="node n-derived" x="200" y="512" width="12" height="12" rx="2"/>
+          <text class="t-mut" x="218" y="522" font-size="11">Derived by identity</text>
+          <rect class="node n-addback" x="360" y="512" width="12" height="12" rx="2"/>
+          <text class="t-mut" x="378" y="522" font-size="11">Addback-related</text>
+          <rect class="node n-cov"     x="500" y="512" width="12" height="12" rx="2"/>
+          <text class="t-mut" x="518" y="522" font-size="11">Covenant</text>
+          <line class="link-dash" x1="60" y1="540" x2="88" y2="540"/>
+          <text class="t-mut" x="94" y="544" font-size="11">Co-movement (modeled correlation between drivers)</text>
+        </svg>
+        <div class="fig-cap">Diagram 2 — The finance spine. Drivers feed the identities; the identities cascade; the cascade feeds the covenants.</div>
+      </div>
+
+      <div class="callout hl">
+        <div class="ct">The fundamental difference, in one place</div>
+        <div class="cb"><strong>Same spine, two representations.</strong> Deterministic Engine: each driver is a point estimate; the identities carry points; co-movement between drivers is not represented. Probabilistic Engine: the drivers form a joint distribution; the identities carry distributions via Monte Carlo; co-movement between drivers is explicitly modeled.</div>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-label">Finance spine · shared</div>
+      <div class="section-title">Addbacks</div>
+      <div class="section-desc">Addbacks are where management discretion enters the numbers most aggressively, and Adjusted EBITDA is the covenant denominator — so addback treatment moves every leverage covenant directly. This is not a footnote; it is one of the most consequential lines in the whole system.</div>
+
+      <div class="prose">
+        <p><strong>What addbacks are.</strong> Addbacks are amounts management adds back to reported EBITDA to arrive at "Adjusted EBITDA," on the argument that these costs are not part of ongoing operations — one-time legal or restructuring costs, owner-compensation normalization, non-recurring fees, transaction costs, and sometimes aggressive run-rate adjustments. The credit danger is direct: inflating addbacks manufactures covenant headroom that may not be real. Growing addbacks are a classic credit-quality red flag, because they can quietly convert a deteriorating business into one that still looks compliant.</p>
+        <p><strong>Classification (shared logic across both engines).</strong> An addback that appears in three or more consecutive quarters is classified <strong>recurring</strong> — a sponsor monitoring fee, for example — and is projected forward as a trailing four-quarter average. Sporadic items are classified <strong>non-recurring</strong> and are assumed to diminish. Separately, a <strong>creep flag</strong> fires if any addback's trailing amount exceeds 120% of its historical average; that flag feeds the narrative as a credit signal, separately from the core number. All thresholds are <em>(provisional — backtest-determined)</em>.</p>
+        <p><strong>Non-recurring decay — and where the engines diverge.</strong> The Deterministic Engine projects non-recurring addbacks with a fixed exponential decay of 0.75&#215; per quarter <em>(provisional)</em>. The Probabilistic Engine instead treats the decay itself as <em>uncertain</em>: the addback contribution decays in expectation but carries a wide, right-skewed distribution — it cannot fall far below zero, but a supposedly "one-time" item can recur upward — and that uncertainty flows into the Adjusted EBITDA distribution and hence into the probability of breach. The reason the Deterministic Engine <em>cannot</em> carry a probabilistic addback is structural, not a matter of effort: its cascade does point arithmetic with no uncertainty propagation, so a distribution introduced at the addback step would be collapsed straight back to a point at the very next identity (Adjusted EBITDA = Reported EBITDA + Addbacks). It has nowhere for the uncertainty to go. Only an engine that propagates distributions end to end can preserve it. So addbacks fork exactly like every other line: shared classification, then deterministic-versus-probabilistic projection.</p>
+        <p><strong>The honest strength — stated, not oversold.</strong> Addbacks are the murkiest and most gameable line in the statements, and they are precisely where "carry the uncertainty" versus "commit to a point" diverges most consequentially, because they sit in the covenant denominator. The Deterministic Engine is architecturally forced to commit to a number there; the Probabilistic Engine can preserve the doubt. Running both is what lets the team see how much that choice actually matters once real data is in — rather than assuming an answer in advance.</p>
+        <p><strong>Data reality in the lower middle market.</strong> In the LMM, addbacks are often reported in aggregate rather than itemized. This spec assumes we can separate recurring from non-recurring items. Where only an aggregate addback time series exists, the fallback is to model the aggregate's level, trend, and persistence as a percentage of EBITDA — which the Probabilistic Engine handles naturally as one more dynamic with its own uncertainty — and to always run the magnitude/growth creep flag, which needs no itemization at all. This is a genuine data-availability dependency and is flagged as such.</p>
+      </div>
+
+      <div class="fig">
+        <svg viewBox="0 0 680 490" width="100%" role="img" aria-label="Addback treatment flow: line items are classified, recurring and non-recurring branches feed Adjusted EBITDA, and a creep flag feeds the narrative.">
+          <defs>
+            <marker id="ah3" markerWidth="9" markerHeight="9" refX="6" refY="3" orient="auto" markerUnits="userSpaceOnUse">
+              <path class="arrowhd" d="M0 0 L6 3 L0 6 Z"/>
+            </marker>
+          </defs>
+
+          <!-- Start -->
+          <rect class="node n-shared" x="250" y="36" width="180" height="48" rx="6"/>
+          <text class="t-shared" x="340" y="56" text-anchor="middle" font-size="13" font-weight="600">Addback line items</text>
+          <text class="t-shared" x="340" y="72" text-anchor="middle" font-size="11">(or aggregate addbacks)</text>
+          <path class="link" d="M340 84 L340 109" marker-end="url(#ah3)"/>
+
+          <!-- Classification -->
+          <rect class="node n-shared" x="236" y="110" width="208" height="46" rx="6"/>
+          <text class="t-shared" x="340" y="130" text-anchor="middle" font-size="13" font-weight="600">Classification</text>
+          <text class="t-shared" x="340" y="146" text-anchor="middle" font-size="11">recurring vs. non-recurring</text>
+
+          <!-- Branch fan -->
+          <path class="link" d="M300 156 L150 189" marker-end="url(#ah3)"/>
+          <path class="link" d="M340 156 L340 189" marker-end="url(#ah3)"/>
+          <path class="link" d="M392 156 L544 189" marker-end="url(#ah3)"/>
+
+          <!-- Row 3: Recurring / Non-recurring / Creep flag -->
+          <rect class="node n-shared" x="44" y="190" width="168" height="46" rx="6"/>
+          <text class="t-shared" x="128" y="212" text-anchor="middle" font-size="12" font-weight="600">Recurring</text>
+          <text class="t-shared" x="128" y="227" text-anchor="middle" font-size="11">3+ consecutive qtrs</text>
+
+          <rect class="node n-shared" x="236" y="190" width="208" height="46" rx="6"/>
+          <text class="t-shared" x="340" y="212" text-anchor="middle" font-size="12" font-weight="600">Non-recurring</text>
+          <text class="t-shared" x="340" y="227" text-anchor="middle" font-size="11">sporadic items</text>
+
+          <rect class="node n-alert" x="464" y="190" width="172" height="46" rx="6"/>
+          <text class="t-alert" x="550" y="212" text-anchor="middle" font-size="12" font-weight="600">Creep flag</text>
+          <text class="t-alert" x="550" y="227" text-anchor="middle" font-size="11">&gt; 120% of hist. avg</text>
+
+          <!-- Row 3 -> Row 4 arrows -->
+          <path class="link" d="M128 236 L128 269" marker-end="url(#ah3)"/>
+          <path class="link" d="M340 236 L340 269" marker-end="url(#ah3)"/>
+          <path class="link" d="M550 236 L550 269" marker-end="url(#ah3)"/>
+
+          <!-- Row 4: projections -->
+          <rect class="node n-shared" x="44" y="270" width="168" height="46" rx="6"/>
+          <text class="t-shared" x="128" y="292" text-anchor="middle" font-size="12" font-weight="600">Trailing average</text>
+          <text class="t-shared" x="128" y="307" text-anchor="middle" font-size="11">4-quarter</text>
+
+          <rect class="node n-shared" x="236" y="270" width="208" height="62" rx="6"/>
+          <text class="t-shared" x="340" y="289" text-anchor="middle" font-size="12" font-weight="600">Decay projection</text>
+          <text class="t-shared" x="340" y="306" text-anchor="middle" font-size="11">Deterministic: fixed 0.75&#215;/qtr</text>
+          <text class="t-shared" x="340" y="321" text-anchor="middle" font-size="11">Probabilistic: uncertain decay</text>
+
+          <rect class="node n-shared" x="464" y="270" width="172" height="46" rx="6"/>
+          <text class="t-shared" x="550" y="292" text-anchor="middle" font-size="12" font-weight="600">Narrative signal</text>
+          <text class="t-shared" x="550" y="307" text-anchor="middle" font-size="11">credit-quality flag</text>
+
+          <!-- Row 4 -> Adjusted EBITDA -->
+          <path class="link" d="M128 316 L252 396" marker-end="url(#ah3)"/>
+          <path class="link" d="M340 332 L340 383" marker-end="url(#ah3)"/>
+
+          <!-- Adjusted EBITDA output (amber) -->
+          <rect class="node n-addback" x="250" y="384" width="180" height="48" rx="6"/>
+          <text class="t-addback" x="340" y="404" text-anchor="middle" font-size="13" font-weight="600">Adjusted EBITDA</text>
+          <text class="t-addback" x="340" y="420" text-anchor="middle" font-size="11">covenant denominator</text>
+
+          <!-- Legend -->
+          <rect class="node n-shared"  x="44"  y="458" width="12" height="12" rx="2"/>
+          <text class="t-mut" x="62"  y="468" font-size="11">Process / classification</text>
+          <rect class="node n-addback" x="240" y="458" width="12" height="12" rx="2"/>
+          <text class="t-mut" x="258" y="468" font-size="11">Addback (Adjusted EBITDA)</text>
+          <rect class="node n-alert"   x="470" y="458" width="12" height="12" rx="2"/>
+          <text class="t-mut" x="488" y="468" font-size="11">Creep flag / alert</text>
+        </svg>
+        <div class="fig-cap">Diagram 3 — Addback treatment. Shared classification; the decay branch is where the two engines project differently.</div>
+      </div>
+    </div>
+
+  </section>
+  <section class="tab-content" id="deterministic">
+
+    <div class="section">
+      <div class="section-label">Deterministic Engine</div>
+      <div class="section-title">How it reasons</div>
+      <div class="section-desc">This is the established forecasting approach, described faithfully and as one of two genuinely valuable designs. Its strengths are real: interpretable feature-to-target relationships, battle-tested ensemble methods, and a wide-net exploration posture that is exactly right when the best model is not yet known.</div>
+      <div class="prose">
+        <p>The Deterministic Engine learns a mapping from input features to a target value and predicts a single number for each line item. Because it fits a target as a function of many predictors, it captures rich multivariate relationships and stays directly interpretable — you can read which features move a forecast and by how much. And rather than committing to one model per target, it runs several candidate models and selects or prunes them based on measured performance. That is the same wide-then-narrow philosophy as the two-engine system itself, one level down: start with several plausible models, and let evidence decide which survive.</p>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-label">Deterministic Engine</div>
+      <div class="section-title">Forecast core — internal nodes</div>
+      <div class="section-desc">The forecast core forecasts each driver, selects the best model per target, applies the shared addback treatment, and assembles the downstream lines by identity — all as point estimates. A separate credit classifier produces an implied rating.</div>
+
+      <div class="fig">
+        <svg viewBox="0 0 680 296" width="100%" role="img" aria-label="Deterministic forecast core: driver forecasting, model selection, cascade assembly to point estimates; addback treatment feeds the cascade; a separate credit classifier outputs a point.">
+          <defs>
+            <marker id="ah4" markerWidth="9" markerHeight="9" refX="6" refY="3" orient="auto" markerUnits="userSpaceOnUse">
+              <path class="arrowhd" d="M0 0 L6 3 L0 6 Z"/>
+            </marker>
+          </defs>
+
+          <!-- Row 1: main pipeline -->
+          <rect class="node n-driver" x="40" y="60" width="180" height="60" rx="6"/>
+          <text class="t-driver" x="130" y="84" text-anchor="middle" font-size="13" font-weight="600">Driver forecasting</text>
+          <text class="t-driver" x="130" y="101" text-anchor="middle" font-size="11">per-line-item regressions</text>
+
+          <rect class="node n-driver" x="250" y="60" width="180" height="60" rx="6"/>
+          <text class="t-driver" x="340" y="84" text-anchor="middle" font-size="13" font-weight="600">Model selection</text>
+          <text class="t-driver" x="340" y="101" text-anchor="middle" font-size="11">RMSE cross-validation</text>
+
+          <rect class="node n-derived" x="460" y="60" width="176" height="60" rx="6"/>
+          <text class="t-derived" x="548" y="84" text-anchor="middle" font-size="13" font-weight="600">Cascade assembly</text>
+          <text class="t-mut" x="548" y="101" text-anchor="middle" font-size="11">derive downstream lines</text>
+
+          <path class="link" d="M220 90 L249 90" marker-end="url(#ah4)"/>
+          <path class="link" d="M430 90 L459 90" marker-end="url(#ah4)"/>
+
+          <!-- Row 2 -->
+          <rect class="node n-derived" x="40" y="176" width="180" height="58" rx="6"/>
+          <text class="t-derived" x="130" y="200" text-anchor="middle" font-size="13" font-weight="600">Credit classifier</text>
+          <text class="t-mut" x="130" y="217" text-anchor="middle" font-size="11">ratios &#8594; credit point</text>
+
+          <rect class="node n-addback" x="250" y="176" width="180" height="58" rx="6"/>
+          <text class="t-addback" x="340" y="196" text-anchor="middle" font-size="13" font-weight="600">Addback treatment</text>
+          <text class="t-addback" x="340" y="212" text-anchor="middle" font-size="11">recurring / non-recurring</text>
+          <text class="t-addback" x="340" y="227" text-anchor="middle" font-size="11">fixed 0.75&#215; decay</text>
+
+          <rect class="node n-derived" x="460" y="176" width="176" height="58" rx="6"/>
+          <text class="t-derived" x="548" y="200" text-anchor="middle" font-size="13" font-weight="600">Point estimates</text>
+          <text class="t-mut" x="548" y="217" text-anchor="middle" font-size="11">one number per line</text>
+
+          <path class="link" d="M360 176 L472 121" marker-end="url(#ah4)"/>
+          <path class="link" d="M548 120 L548 175" marker-end="url(#ah4)"/>
+
+          <!-- Legend -->
+          <rect class="node n-driver"  x="40"  y="262" width="12" height="12" rx="2"/>
+          <text class="t-mut" x="58"  y="272" font-size="11">Modeled driver</text>
+          <rect class="node n-addback" x="220" y="262" width="12" height="12" rx="2"/>
+          <text class="t-mut" x="238" y="272" font-size="11">Addback-related</text>
+          <rect class="node n-derived" x="380" y="262" width="12" height="12" rx="2"/>
+          <text class="t-mut" x="398" y="272" font-size="11">Assembly / derived / output</text>
+        </svg>
+        <div class="fig-cap">Diagram 4 — Deterministic forecast core. Everything flows as point estimates; the credit classifier is a separate model producing an implied rating point.</div>
+      </div>
+
+      <div class="prose">
+        <p><strong>Driver forecasting.</strong> Each modeled driver — Revenue, Gross Margin %, OpEx, Working-Capital turnover, Capex — gets its own regression, with a family of candidate models tried per target: Ridge, Lasso, ElasticNet, and a Gradient Boosting Regressor. Each is a genuinely different bet about the shape of the relationship:</p>
+        <p style="padding-left:6px; border-left:2px solid var(--border);">
+          <strong>Ridge</strong> — ordinary least squares with an L2 penalty. It shrinks all coefficients toward zero and handles correlated features gracefully, spreading weight across them rather than picking arbitrarily.<br><br>
+          <strong>Lasso</strong> — least squares with an L1 penalty. It drives some coefficients exactly to zero, performing automatic feature selection and yielding a sparse, readable model.<br><br>
+          <strong>ElasticNet</strong> — a blend of L1 and L2. It selects features like Lasso while handling correlated predictors gracefully like Ridge, which is useful when features are both numerous and collinear.<br><br>
+          <strong>Gradient Boosting Regressor</strong> — a non-linear ensemble of decision trees built sequentially, each tree correcting the residual errors of the trees before it. It captures non-linear interactions the linear models cannot, but it is data-hungry and prone to overfitting on small samples — a real caution at this portfolio size.
+        </p>
+        <p><strong>Model selection.</strong> All candidates are fit per target, their error is measured by cross-validated RMSE, and the best performer is kept. Over time the candidate set is pruned and specialized by company and industry, so the engine narrows toward the models that actually work for each kind of business.</p>
+        <p><strong>Addback treatment.</strong> The shared classification applies — recurring versus non-recurring, a fixed decay for non-recurring items, and the creep flag — exactly as described in the Finance Spine tab. In this engine the decay is a fixed 0.75&#215; per quarter.</p>
+        <p><strong>Cascade assembly.</strong> From the forecasted drivers, the engine derives Gross Profit, then EBITDA, then Adjusted EBITDA, then Free Cash Flow, then Net Debt — all by identity, and all as points. The result is one internally consistent projected set of statements.</p>
+        <p><strong>Credit classifier.</strong> Running alongside the forecast, a separate classification model produces an implied internal rating from the company's current financial ratios. Its details are below.</p>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-label">Deterministic Engine</div>
+      <div class="section-title">Credit classifier</div>
+      <div class="prose">
+        <p>The classifier predicts an implied internal rating from current financial ratios, trained on the firm's own history of ratios paired with the analyst-assigned 1&#8211;5 rating. Several candidate models are tried, each with a distinct character:</p>
+        <p style="padding-left:6px; border-left:2px solid var(--border);">
+          <strong>Logistic Regression</strong> — a linear baseline that natively outputs class probabilities. Simple, stable, and easy to interpret.<br><br>
+          <strong>Random Forest</strong> — a bagging ensemble that grows many trees on random subsets of rows and features and averages them. It is robust and hard to overfit, because the averaging cancels individual trees' idiosyncrasies.<br><br>
+          <strong>XGBoost</strong> — an optimized gradient-boosting implementation with built-in regularization. Highly accurate, but data-hungry.<br><br>
+          <strong>LightGBM</strong> — another optimized boosting implementation, effectively a near-substitute for XGBoost at this portfolio size.
+        </p>
+        <p>The winner is chosen by cross-validated accuracy. Interpretability comes from <strong>SHAP</strong> (SHapley Additive exPlanations), a method from cooperative game theory that fairly attributes a single company's predicted score to each input feature, producing a per-company additive breakdown — for example, "leverage pushed risk up 12, weak coverage +8, healthy cash flow &#8722;3." One honest caveat: SHAP explains whatever the model actually learned, so on a model fit to little data it can faithfully explain noise. Explanation quality is capped by model quality.</p>
+        <div class="callout">
+          <div class="ct">How this output feeds the shared rating system</div>
+          <div class="cb">The credit classifier produces a <strong>point</strong> — a single implied credit score / rating. That point is handed to the shared Risk Positioning stage; the classifier does <strong>not</strong> perform the final rating reconciliation itself. See the Risk Positioning &amp; Monitoring tab for how the shared stage consumes it — identically to how it consumes the Probabilistic Engine's credit-status distribution.</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-label">Deterministic Engine</div>
+      <div class="section-title">Arbitrary decision register</div>
+      <div class="section-desc">These are the free parameters where judgment, not data, sets the value — the explicit list of things backtesting must resolve. Several feed each other (decay rate &#8594; Adjusted EBITDA &#8594; covenant score &#8594; composite &#8594; escalation bin), so the compounding of judgment across the chain is larger than any single row suggests.</div>
+      <table class="dtable">
+        <thead>
+          <tr><th style="width:5%;">#</th><th style="width:27%;">Knob</th><th style="width:15%;">Where</th><th style="width:20%;">Value</th><th style="width:33%;">Impact if changed</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>1</td><td>Non-recurring addback decay rate</td><td>Forecast core</td><td>0.75 / qtr</td><td>Moves projected Adjusted EBITDA &#8594; every leverage covenant</td></tr>
+          <tr><td>2</td><td>Recurring classification threshold</td><td>Forecast core</td><td>3+ consecutive qtrs</td><td>Which addbacks get stable vs. decaying treatment</td></tr>
+          <tr><td>3</td><td>Addback creep flag threshold</td><td>Forecast core</td><td>120% of hist. avg</td><td>What counts as a creep red flag</td></tr>
+          <tr><td>4</td><td>Model selection criterion</td><td>Forecast core</td><td>lowest RMSE / highest accuracy</td><td>Which model wins per target; noisy on small data</td></tr>
+          <tr><td>5</td><td>Features fed to each regression</td><td>Forecast core</td><td>(to be specified)</td><td>Silently steers every forecast</td></tr>
+          <tr><td>6</td><td>Composite score weights</td><td>Scoring</td><td>35% credit / 65% trajectory</td><td>Watchlist ranking; wholly judgmental</td></tr>
+          <tr><td>7</td><td>Rating-gap alert threshold</td><td>Scoring</td><td>&#177;15 points</td><td>When model-vs-analyst divergence fires</td></tr>
+          <tr><td>8</td><td>Z-score rolling window length</td><td>Scoring</td><td>(to be specified)</td><td>Defines what reads as a spike vs. normal</td></tr>
+          <tr><td>9</td><td>Velocity spike threshold</td><td>Alerting</td><td>&gt; 15 pts in one period</td><td>Escalation trigger sensitivity</td></tr>
+          <tr><td>10</td><td>Drift trigger</td><td>Alerting</td><td>3 consecutive qtrs</td><td>Slow-deterioration sensitivity</td></tr>
+          <tr><td>11</td><td>Composite escalation bins</td><td>Alerting</td><td>&gt; 70 / 40&#8211;70 / &lt; 40</td><td>Bin edges for Escalate / Watch / Monitor</td></tr>
+          <tr><td>12</td><td>Score &#8594; 0&#8211;100 scaling method</td><td>Scoring</td><td>(to be specified)</td><td>How incommensurable outputs get squashed to compare</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+  </section>
+  <section class="tab-content" id="probabilistic">
+
+    <div class="section">
+      <div class="section-label">Probabilistic Engine</div>
+      <div class="section-title">How it reasons</div>
+      <div class="section-desc">This is the most technically involved tab, and the one that most needs to read for two audiences at once. Every concept below is introduced in plain language first, then in mechanism, then in a diagram — the layers are additive, not alternatives.</div>
+      <div class="prose">
+        <p>The Probabilistic Engine holds a probabilistic <em>belief</em> about each company's true underlying condition, and it updates that belief as each month's data arrives. Its output is not a number but a distribution — honest uncertainty about where the company actually is and where it is heading. That is exactly the currency a risk-flagging tool wants, because the useful question is rarely "what is the single most likely revenue" but "how much of the plausible range now sits in dangerous territory."</p>
+        <p>Three ideas combine to produce that belief. The first is the <strong>shared cascade</strong> from the Finance Spine — the same drivers and the same identities, only now carrying distributions. The second is a <strong>state-space model updated by the Kalman filter</strong>, which supplies the time dimension: how a company's hidden condition evolves month to month and how each new report should shift our belief. The third is a <strong>hierarchical prior pooled across companies</strong>, which supplies the portfolio dimension: how what we have learned from the whole book informs what we expect of any one company, especially a new one. The next three sections take these in turn.</p>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-label">Probabilistic Engine</div>
+      <div class="section-title">State-space models and the Kalman filter</div>
+      <div class="prose">
+        <p><strong>The intuition — separate the truth from the measurement.</strong> A company's reported monthly financials are its true underlying condition plus noise: accounting timing, one-off items, the ordinary messiness of books closed under deadline. We do not actually want to model the noisy reported number; we want to infer the clean underlying <em>state</em> that generated it. So the model maintains a probability distribution over that hidden state — a best estimate together with honest uncertainty around it — and revises the distribution every month as new reports arrive.</p>
+        <p><strong>The mechanism.</strong> A state-space model is defined by two equations. The <strong>state (transition) equation</strong>, <span class="eq">state[t] = F &#183; state[t&#8722;1] + process noise</span>, says this month's hidden state is a function of last month's plus random "process noise" — genuine change we could not predict. For a level-plus-trend model, F simply encodes "new level = old level + old trend; new trend = old trend," and the process noise is precisely what allows the trend to actually change over time. The <strong>observation equation</strong>, <span class="eq">observation[t] = H &#183; state[t] + measurement noise</span>, says the reported financial is the hidden state passed through a mapping H, plus measurement noise. That measurement-noise term is what lets the model treat a surprising month as partly noise rather than chasing every wiggle in the data.</p>
+        <p><strong>The two noise terms — and their relative size — control everything.</strong> Large measurement noise together with small process noise means the model trusts its own internal trend and smooths over surprises, which suits a stable company. Small measurement noise together with large process noise means the model adapts quickly to each new reading, which suits a volatile or rapidly changing company. These noise parameters are exactly what gets pooled across companies in the hierarchy section — they are the compact description of how a company behaves.</p>
+        <p><strong>The filter loop — two steps every month.</strong> First, <strong>predict</strong>, before seeing this month's data: project last month's state estimate forward through the transition equation to get this month's prediction, with <em>wider</em> uncertainty, because time has passed and the company could have drifted. This is the one genuine forecast, and it is made before the data arrives. Second, <strong>update / correct</strong>, after the data arrives: compare the actual to the prediction; the gap is the <strong>innovation</strong>, or surprise. Nudge the estimate toward the data by an amount set by the <strong>Kalman gain</strong> &mdash; <span class="eq">new estimate = prediction + gain &#215; (actual &#8722; prediction)</span>. The gain is high when we trust the data (low measurement noise) and low when we do not. Crucially, uncertainty <em>shrinks</em> in this step, because we have just gained information. So the uncertainty band breathes: it widens in the predict step and narrows in the update step.</p>
+        <p><strong>Why this is Bayesian updating.</strong> The predict step produces a prior for this month; the incoming data is the likelihood; the update step combines them into a posterior. That is Bayes' rule. The Kalman filter is simply the closed-form solution to Bayesian updating in the special case where everything is linear and Gaussian.</p>
+        <p><strong>A clarification that is easy to get wrong.</strong> The posterior is the model's estimate of the true state of the <em>current</em> period — a denoised read on the present — <strong>not</strong> a prediction of next period. Prediction is the separate act of pushing the posterior forward through the transition equation. In sequence each month: (1) carry last month's posterior forward to get this month's prior, which <em>is</em> the prediction, frozen before any data; (2) observe the actuals; (3) update to get this month's posterior, the denoised truth of the present. The "prediction versus actual" comparison the dashboard tracks is step-1 output against step-2 observation — the innovation — and that single quantity is both the flagging signal and the calibration metric.</p>
+        <p><strong>How prediction actually works.</strong> Prediction is not a separate regression bolted on. It is the transition step of the very same model: project the posterior state forward with <span class="eq">next state = F &#183; current state + process noise</span> — applied step by step to reach the target horizon. Both engines forecast out <strong>at least one full quarter</strong> (three months), which is the minimum useful horizon for covenant testing and early flagging; the state-space form reaches it by projecting forward month by month and reading off the quarter-end distribution. The uncertainty is projected too, and the process noise <em>widens</em> it at every step, so the forecast is a median trajectory with intervals that fan out — the model honestly saying that the further it projects, the less it knows. That makes it trustworthy only for short horizons, roughly one to two quarters, which is exactly right because the goal is early flagging, not long-range forecasting. Because it projects the current trend forward, it cannot foresee a regime break — a lost customer, an acquisition; those enter only as injected exogenous events, for example from board-deck extraction.</p>
+      </div>
+
+      <div class="fig">
+        <svg viewBox="0 0 680 416" width="100%" role="img" aria-label="Kalman predict/update loop with a frozen-prediction branch feeding the innovation, and an inset showing the uncertainty band widening on predict and narrowing on update.">
+          <defs>
+            <marker id="ah5" markerWidth="9" markerHeight="9" refX="6" refY="3" orient="auto" markerUnits="userSpaceOnUse">
+              <path class="arrowhd" d="M0 0 L6 3 L0 6 Z"/>
+            </marker>
+          </defs>
+
+          <!-- Return arrow over the top -->
+          <path class="link" d="M586 56 L586 34 L94 34 L94 55" marker-end="url(#ah5)"/>
+          <text class="t-mut" x="340" y="28" text-anchor="middle" font-size="11">becomes next month's prior</text>
+
+          <!-- Loop nodes -->
+          <rect class="node n-conv" x="40" y="56" width="108" height="58" rx="6"/>
+          <text class="t-conv" x="94" y="82" text-anchor="middle" font-size="12" font-weight="600">Prior belief</text>
+          <text class="t-conv" x="94" y="98" text-anchor="middle" font-size="11">from last month</text>
+
+          <rect class="node n-shared" x="163" y="56" width="108" height="58" rx="6"/>
+          <text class="t-shared" x="217" y="76" text-anchor="middle" font-size="12" font-weight="600">Predict</text>
+          <text class="t-shared" x="217" y="91" text-anchor="middle" font-size="11">project forward</text>
+          <text class="t-shared" x="217" y="105" text-anchor="middle" font-size="11">band widens</text>
+
+          <rect class="node n-shared" x="286" y="56" width="108" height="58" rx="6"/>
+          <text class="t-shared" x="340" y="82" text-anchor="middle" font-size="12" font-weight="600">Observe</text>
+          <text class="t-shared" x="340" y="98" text-anchor="middle" font-size="11">actual financials</text>
+
+          <rect class="node n-shared" x="409" y="56" width="108" height="58" rx="6"/>
+          <text class="t-shared" x="463" y="76" text-anchor="middle" font-size="12" font-weight="600">Update</text>
+          <text class="t-shared" x="463" y="91" text-anchor="middle" font-size="11">via Kalman gain</text>
+          <text class="t-shared" x="463" y="105" text-anchor="middle" font-size="11">band narrows</text>
+
+          <rect class="node n-conv" x="532" y="56" width="108" height="58" rx="6"/>
+          <text class="t-conv" x="586" y="82" text-anchor="middle" font-size="12" font-weight="600">Posterior</text>
+          <text class="t-conv" x="586" y="98" text-anchor="middle" font-size="11">denoised present</text>
+
+          <path class="link" d="M148 85 L162 85" marker-end="url(#ah5)"/>
+          <path class="link" d="M271 85 L285 85" marker-end="url(#ah5)"/>
+          <path class="link" d="M394 85 L408 85" marker-end="url(#ah5)"/>
+          <path class="link" d="M517 85 L531 85" marker-end="url(#ah5)"/>
+
+          <!-- Innovation branch -->
+          <path class="link" d="M217 114 L203 155" marker-end="url(#ah5)"/>
+          <path class="link" d="M340 114 L360 155" marker-end="url(#ah5)"/>
+
+          <rect class="node n-alert" x="120" y="156" width="150" height="46" rx="6"/>
+          <text class="t-alert" x="195" y="176" text-anchor="middle" font-size="12" font-weight="600">Prediction (frozen)</text>
+          <text class="t-alert" x="195" y="192" text-anchor="middle" font-size="11">made before data</text>
+
+          <rect class="node n-alert" x="290" y="156" width="150" height="46" rx="6"/>
+          <text class="t-alert" x="365" y="176" text-anchor="middle" font-size="12" font-weight="600">Innovation</text>
+          <text class="t-alert" x="365" y="192" text-anchor="middle" font-size="11">actual &#8722; prediction</text>
+
+          <rect class="node n-alert" x="460" y="156" width="160" height="46" rx="6"/>
+          <text class="t-alert" x="540" y="176" text-anchor="middle" font-size="12" font-weight="600">Flagging signal</text>
+          <text class="t-alert" x="540" y="192" text-anchor="middle" font-size="11">+ calibration metric</text>
+
+          <path class="link" d="M270 179 L289 179" marker-end="url(#ah5)"/>
+          <path class="link" d="M440 179 L459 179" marker-end="url(#ah5)"/>
+
+          <!-- Inset: the band breathes -->
+          <text class="t-pri" x="40" y="238" font-size="12" font-weight="600">The uncertainty band breathes</text>
+          <line class="thresh" x1="60" y1="288" x2="612" y2="288"/>
+          <path class="band" d="M64 282 L150 262 L172 280 L272 258 L294 279 L394 257 L416 278 L516 258 L540 277 L612 268 L612 308 L540 299 L516 318 L416 298 L394 319 L294 297 L272 318 L172 296 L150 314 L64 294 Z"/>
+          <text class="t-mut" x="150" y="250" text-anchor="middle" font-size="11">predict &#8594; widens</text>
+          <text class="t-mut" x="294" y="336" text-anchor="middle" font-size="11">update &#8594; narrows</text>
+          <text class="t-ter" x="612" y="336" text-anchor="end" font-size="11">time &#8594;</text>
+
+          <!-- Legend -->
+          <rect class="node n-shared" x="40"  y="380" width="12" height="12" rx="2"/>
+          <text class="t-mut" x="58"  y="390" font-size="11">Filter process</text>
+          <rect class="node n-conv"   x="180" y="380" width="12" height="12" rx="2"/>
+          <text class="t-mut" x="198" y="390" font-size="11">Belief / posterior</text>
+          <rect class="node n-alert"  x="340" y="380" width="12" height="12" rx="2"/>
+          <text class="t-mut" x="358" y="390" font-size="11">Innovation / flagging</text>
+        </svg>
+        <div class="fig-cap">Diagram 5 — The Kalman predict/update loop. The frozen prediction feeds the innovation, which is both the flagging signal and the calibration metric.</div>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-label">Probabilistic Engine</div>
+      <div class="section-title">Pooling models, not numbers — the hierarchical prior</div>
+      <div class="prose">
+        <p><strong>The key insight, stated plainly, because it is the crux of the whole design:</strong> we do <em>not</em> pool companies' raw financial numbers. A $20M company's revenue and a $120M company's revenue do not compare, and pooling them would simply drown our already-small dataset in scale differences. Instead we pool the <strong>models</strong> — the compact set of parameters that describe <em>how</em> each company moves. Two businesses of wildly different size can move in very similar ways, and it is that shared behavior we borrow.</p>
+        <p><strong>What "a model of how a company moves" is.</strong> In the state-space model the transition matrix F is fixed by design — it is just the arithmetic of level and trend. What is actually <em>learned</em> per company is a small set of parameters, call it &#952; (theta): the process-noise variances (how much the level and trend wander month to month — the company's volatility fingerprint), the observation-noise variance (how noisy its reporting is), and its seasonality parameters. &#952; is just a handful of scale-free numbers that capture the <em>character</em> of how a company moves. A twitchy company has large process noise; a steady, annuity-like company has small process noise. Two companies of very different size can share nearly the same &#952; — both growing around 5% with moderate volatility — which is exactly why &#952; pools cleanly when raw revenue cannot.</p>
+        <p><strong>A vector state, not a stack of independent lines.</strong> The state is a <em>vector</em> that carries the level and trend for all drivers jointly, and &#952; includes the <strong>covariance</strong> among them — how they move together. This is the essence of an industry's financial physics: does OpEx flex with revenue (a variable-cost business) or stay flat (a fixed-cost one)? Does margin compress when revenue falls (operating deleverage)? A set of independent per-line models throws all of that away; a multivariate state captures it. We start with a <strong>parsimonious</strong> covariance — modeling the strongest couple of relationships, Revenue&#8596;OpEx and Revenue&#8596;Working-Capital, rather than a full dense matrix that would overfit on thin data — and expand it as backtesting justifies. <em>(Provisional — backtest-determined which covariances to include.)</em></p>
+        <p><strong>Pooling.</strong> Collect the &#952;'s across all companies and fit a distribution over them. That distribution — "across our book, volatility clusters around here, with this covariance structure" — <em>is</em> the prior. A new company is assumed to have its &#952; drawn from that distribution until its own data says otherwise.</p>
+        <p><strong>Clustering — data-discovered "industries."</strong> Rather than hand-assigning SIC codes, we cluster companies in &#952;-space by their <em>dynamics</em>: group the ones that <em>move</em> alike, using unsupervised learning. Companies with similar behavioral fingerprints form a cluster, and each cluster gets its own tighter prior. This natively handles the objections that a hand-drawn taxonomy raises: fuzzy industry boundaries (a company can sit near a boundary or hold partial membership), companies that genuinely sit between industries (fractional cluster membership), and the long tail — a company with no clear cluster falls back to the whole-portfolio prior with wider uncertainty, which is exactly correct, because we genuinely know less about a company that has no comparables. Clusters are labeled <em>after</em> the math, for interpretability — a human names a cluster "working-capital-heavy cyclicals." That is the semi-supervised flavor: the data draws the boundaries, humans name the regions. On a sparse portfolio, expect few and coarse clusters — perhaps three to six — and let the data decide the count <em>(provisional — backtest-determined)</em>. One honest note: a multivariate covariance cannot be estimated from a single company's short history, and this is precisely where pooling re-earns its keep, because the covariance structure is borrowed from the cluster until the company has enough of its own data.</p>
+      </div>
+
+      <div class="fig">
+        <svg viewBox="0 0 680 508" width="100%" role="img" aria-label="Clustering workflow: estimate each company's dynamics, plot them in dynamics space, group similar ones by unsupervised clustering, label the groups, and assign each company its cluster prior.">
+          <defs>
+            <marker id="ahC" markerWidth="9" markerHeight="9" refX="6" refY="3" orient="auto" markerUnits="userSpaceOnUse">
+              <path class="arrowhd" d="M0 0 L6 3 L0 6 Z"/>
+            </marker>
+          </defs>
+
+          <text class="t-mut" x="40" y="22" font-size="11" font-weight="700">Step 1 &#183; Estimate dynamics (&#952;) per company</text>
+          <rect class="n-driver" x="40" y="32" width="120" height="40" rx="6"/>
+          <text class="t-driver" x="100" y="49" text-anchor="middle" font-size="12" font-weight="600">Company A</text>
+          <text class="t-driver" x="100" y="63" text-anchor="middle" font-size="11">&#952;: vol, noise, cov</text>
+          <rect class="n-driver" x="170" y="32" width="120" height="40" rx="6"/>
+          <text class="t-driver" x="230" y="49" text-anchor="middle" font-size="12" font-weight="600">Company B</text>
+          <text class="t-driver" x="230" y="63" text-anchor="middle" font-size="11">&#952;: vol, noise, cov</text>
+          <rect class="n-driver" x="300" y="32" width="120" height="40" rx="6"/>
+          <text class="t-driver" x="360" y="49" text-anchor="middle" font-size="12" font-weight="600">Company C</text>
+          <text class="t-driver" x="360" y="63" text-anchor="middle" font-size="11">&#952;: vol, noise, cov</text>
+          <text class="t-ter" x="440" y="56" font-size="11">&#8230; all companies</text>
+
+          <line class="link" x1="230" y1="72" x2="230" y2="96" marker-end="url(#ahC)"/>
+
+          <text class="t-mut" x="40" y="116" font-size="11" font-weight="700">Step 2 &#183; Place each in &#952;-space &#183; Step 3 &#183; Cluster by dynamics (unsupervised)</text>
+          <rect class="n-plain" x="40" y="126" width="380" height="180" rx="8"/>
+          <text class="t-ter" x="52" y="298" font-size="11">low volatility &#8594; high volatility</text>
+          <text class="t-ter" x="52" y="142" font-size="11" transform="rotate(-90 52 142)"></text>
+          <text class="t-ter" x="30" y="220" font-size="11" transform="rotate(-90 30 220)">cyclicality</text>
+
+          <ellipse class="n-cov" cx="120" cy="180" rx="52" ry="38" opacity="0.5"/>
+          <circle class="n-driver" cx="105" cy="170" r="6"/>
+          <circle class="n-driver" cx="132" cy="185" r="6"/>
+          <circle class="n-driver" cx="118" cy="196" r="6"/>
+          <text class="t-cov" x="120" y="230" text-anchor="middle" font-size="11" font-weight="600">cluster 1</text>
+
+          <ellipse class="n-conv" cx="270" cy="205" rx="58" ry="42" opacity="0.5"/>
+          <circle class="n-driver" cx="255" cy="195" r="6"/>
+          <circle class="n-driver" cx="285" cy="200" r="6"/>
+          <circle class="n-driver" cx="268" cy="220" r="6"/>
+          <circle class="n-driver" cx="292" cy="222" r="6"/>
+          <text class="t-conv" x="270" y="258" text-anchor="middle" font-size="11" font-weight="600">cluster 2</text>
+
+          <circle class="n-driver" cx="375" cy="155" r="6"/>
+          <text class="t-ter" x="375" y="140" text-anchor="middle" font-size="11">outlier &#8594;</text>
+          <text class="t-ter" x="392" y="176" font-size="11">portfolio</text>
+          <text class="t-ter" x="392" y="188" font-size="11">prior</text>
+
+          <line class="link" x1="420" y1="200" x2="452" y2="200" marker-end="url(#ahC)"/>
+
+          <text class="t-mut" x="460" y="140" font-size="11" font-weight="700">Step 4 &#183; Label</text>
+          <rect class="n-cov" x="460" y="150" width="180" height="44" rx="6"/>
+          <text class="t-cov" x="470" y="168" font-size="11" font-weight="600">cluster 1 &#8594;</text>
+          <text class="t-cov" x="470" y="184" font-size="11">"stable annuity-like"</text>
+          <rect class="n-conv" x="460" y="200" width="180" height="44" rx="6"/>
+          <text class="t-conv" x="470" y="218" font-size="11" font-weight="600">cluster 2 &#8594;</text>
+          <text class="t-conv" x="470" y="234" font-size="11">"WC-heavy cyclicals"</text>
+          <text class="t-ter" x="460" y="264" font-size="11">(human names the groups)</text>
+
+          <line class="link" x1="230" y1="306" x2="230" y2="340" marker-end="url(#ahC)"/>
+
+          <text class="t-mut" x="40" y="332" font-size="11" font-weight="700">Step 5 &#183; Each cluster becomes a prior; a company inherits its cluster's</text>
+          <rect class="n-conv" x="40" y="348" width="600" height="60" rx="8"/>
+          <text class="t-conv" x="60" y="372" font-size="12" font-weight="600">Cluster prior (distribution over dynamics)</text>
+          <text class="t-conv" x="60" y="392" font-size="11">A new company starts from its cluster's typical &#952;, then its own financials update it. Outliers fall back to the portfolio prior.</text>
+
+          <text class="t-mut" x="40" y="438" font-size="11" font-weight="700">Legend</text>
+          <rect class="n-driver" x="40" y="448" width="16" height="16" rx="3"/>
+          <text class="t-pri" x="62" y="460" font-size="11">company / &#952; point</text>
+          <rect class="n-cov" x="200" y="448" width="16" height="16" rx="3"/>
+          <text class="t-pri" x="222" y="460" font-size="11">discovered cluster</text>
+          <rect class="n-conv" x="370" y="448" width="16" height="16" rx="3"/>
+          <text class="t-pri" x="392" y="460" font-size="11">prior / labeled group</text>
+
+          <text class="t-mut" x="40" y="490" font-size="11">Method: estimate &#952; &#8594; unsupervised clustering in &#952;-space (e.g. Gaussian mixture, soft assignment) &#8594; label &#8594; per-cluster prior. Count of clusters is data-chosen (provisional).</text>
+        </svg>
+        <div class="fig-cap">Diagram 6a — Cluster-then-label workflow. Companies are grouped by how they behave, not by industry code; groups are named after the math; each becomes a prior a new company can inherit.</div>
+      </div>
+
+      <div class="prose">
+        <p><strong>Two levels, two evidences.</strong> There are two unknowns, and each has its own evidence — resolving this cleanly matters. At the <strong>portfolio level</strong>, the evidence is all companies' estimated dynamics (their &#952;'s), and it produces the prior. At the <strong>company level</strong>, the evidence is that company's own actual financials, which update its model away from the shared prior toward its specific reality. It is a two-story structure: the pooled models form the prior on the upper floor, and each company's own numbers are the evidence on the lower floor. The prior washes out as the company accumulates its own history — the pool is training wheels for a new company, and it is gone by the time that company has a couple of years of its own data.</p>
+        <p><strong>Leave-one-out — breaking the circularity.</strong> A company must not help build the prior it is then judged against, or it would effectively see its own data twice and fool itself into false confidence. The fix is to build each company's cluster prior from the <em>other</em> companies in its cluster — leave-one-out — so that its own data is genuinely fresh evidence against a prior it did not contribute to. This is the very same operation as the held-out-companies evaluation split described in the Risk Positioning tab: the thing that makes the model non-circular is the same thing that makes the test honest. Two caveats stated openly: this two-stage approach — estimate the &#952;'s, then pool them — is an approximation of a fully joint hierarchical model; it is easier to explain and defensible, but with a small portfolio the &#952;'s feeding the pool are themselves noisy. That is another thing backtesting checks: does the pooled prior actually beat a plain fixed prior for new companies? If it does not, we fall back to one coarse portfolio-wide prior.</p>
+      </div>
+
+      <div class="fig">
+        <svg viewBox="0 0 680 432" width="100%" role="img" aria-label="Two-story hierarchy: contributing companies' dynamics form the cluster prior via leave-one-out; the held-out company combines that prior with its own financials into its posterior.">
+          <defs>
+            <marker id="ah6" markerWidth="9" markerHeight="9" refX="6" refY="3" orient="auto" markerUnits="userSpaceOnUse">
+              <path class="arrowhd" d="M0 0 L6 3 L0 6 Z"/>
+            </marker>
+          </defs>
+
+          <text class="t-mut" x="44" y="40" font-size="11">Clustering happens in &#952;-space (dynamics) — companies that move alike form a group.</text>
+          <text class="t-mut" x="530" y="40" text-anchor="middle" font-size="11" font-weight="700">leave-one-out</text>
+
+          <!-- Contributing companies -->
+          <rect class="node n-shared" x="44"  y="52" width="84" height="40" rx="6"/>
+          <text class="t-shared" x="86"  y="72" text-anchor="middle" font-size="12" font-weight="600">Co. 1</text>
+          <text class="t-driver" x="86"  y="86" text-anchor="middle" font-size="11" font-weight="700">&#952;&#8321;</text>
+          <rect class="node n-shared" x="142" y="52" width="84" height="40" rx="6"/>
+          <text class="t-shared" x="184" y="72" text-anchor="middle" font-size="12" font-weight="600">Co. 2</text>
+          <text class="t-driver" x="184" y="86" text-anchor="middle" font-size="11" font-weight="700">&#952;&#8322;</text>
+          <rect class="node n-shared" x="240" y="52" width="84" height="40" rx="6"/>
+          <text class="t-shared" x="282" y="72" text-anchor="middle" font-size="12" font-weight="600">Co. 3</text>
+          <text class="t-driver" x="282" y="86" text-anchor="middle" font-size="11" font-weight="700">&#952;&#8323;</text>
+          <rect class="node n-shared" x="338" y="52" width="84" height="40" rx="6"/>
+          <text class="t-shared" x="380" y="72" text-anchor="middle" font-size="12" font-weight="600">Co. 4</text>
+          <text class="t-driver" x="380" y="86" text-anchor="middle" font-size="11" font-weight="700">&#952;&#8324;</text>
+
+          <rect class="node n-shared" x="470" y="52" width="120" height="40" rx="6" style="stroke-dasharray:5 3;"/>
+          <text class="t-shared" x="530" y="70" text-anchor="middle" font-size="12" font-weight="600">Co. 5</text>
+          <text class="t-mut" x="530" y="85" text-anchor="middle" font-size="11">(held out)</text>
+
+          <!-- theta contribution arrows -->
+          <path class="link" d="M86 92 L280 148" marker-end="url(#ah6)"/>
+          <path class="link" d="M184 92 L316 148" marker-end="url(#ah6)"/>
+          <path class="link" d="M282 92 L360 148" marker-end="url(#ah6)"/>
+          <path class="link" d="M380 92 L400 148" marker-end="url(#ah6)"/>
+
+          <!-- Cluster prior -->
+          <rect class="node n-conv" x="250" y="150" width="200" height="54" rx="6"/>
+          <text class="t-conv" x="350" y="173" text-anchor="middle" font-size="13" font-weight="600">Cluster prior</text>
+          <text class="t-conv" x="350" y="190" text-anchor="middle" font-size="11">distribution over dynamics</text>
+
+          <path class="link" d="M350 204 L350 297" marker-end="url(#ah6)"/>
+          <text class="t-mut" x="360" y="254" font-size="11">as prior</text>
+
+          <!-- Held-out company own data down the right -->
+          <path class="link" d="M530 92 L530 328 L452 328" marker-end="url(#ah6)"/>
+          <text class="t-mut" x="540" y="210" font-size="11">its own data</text>
+
+          <!-- Actual financials -->
+          <rect class="node n-shared" x="44" y="304" width="168" height="48" rx="6"/>
+          <text class="t-shared" x="128" y="326" text-anchor="middle" font-size="12" font-weight="600">Actual financials</text>
+          <text class="t-shared" x="128" y="342" text-anchor="middle" font-size="11">(evidence)</text>
+          <path class="link" d="M212 328 L249 328" marker-end="url(#ah6)"/>
+
+          <!-- Company posterior -->
+          <rect class="node n-conv" x="250" y="300" width="200" height="56" rx="6"/>
+          <text class="t-conv" x="350" y="324" text-anchor="middle" font-size="13" font-weight="600">Company posterior</text>
+          <text class="t-conv" x="350" y="341" text-anchor="middle" font-size="11">its own dynamics</text>
+
+          <text class="t-mut" x="350" y="380" text-anchor="middle" font-size="11">The prior washes out as a company accumulates its own history.</text>
+
+          <!-- Legend -->
+          <rect class="node n-conv"   x="44"  y="400" width="12" height="12" rx="2"/>
+          <text class="t-mut" x="62"  y="410" font-size="11">Belief: prior / posterior</text>
+          <rect class="node n-driver" x="250" y="400" width="12" height="12" rx="2"/>
+          <text class="t-mut" x="268" y="410" font-size="11">&#952; (dynamics)</text>
+          <rect class="node n-shared" x="400" y="400" width="12" height="12" rx="2"/>
+          <text class="t-mut" x="418" y="410" font-size="11">Company / data</text>
+        </svg>
+        <div class="fig-cap">Diagram 6 — The two-level hierarchy with leave-one-out. The held-out company's own numbers are fresh evidence against a prior it did not help build.</div>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-label">Probabilistic Engine</div>
+      <div class="section-title">Distributional cascade</div>
+      <div class="prose">
+        <p>Once the drivers are forecast as a <em>joint</em> distribution, they are pushed through the same accounting identities from the Finance Spine — this time by Monte Carlo. Draw many joint samples of the five drivers, preserving their modeled correlations; form each derived line and each covenant ratio within every single draw; and the derived quantities inherit correctly propagated uncertainty <strong>with correlations preserved</strong>. A bad revenue draw and its knock-on margin effect move together in the same sample path, rather than being treated as independent accidents. That is why the resulting probability of breach is honest, instead of assuming — as a naive calculation would — that the covenant's inputs are independent. The draw count is around 10,000 <em>(provisional — precision versus compute)</em>. This is something the Deterministic Engine structurally cannot do — points have no correlation structure to sample from — and that is stated not as a criticism but as the natural consequence of choosing to carry distributions in the first place.</p>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-label">Probabilistic Engine</div>
+      <div class="section-title">How the model is actually fit</div>
+      <div class="section-desc">A natural question is whether we "choose a model" the way the Deterministic Engine selects among Ridge, Lasso, and gradient boosting. We do not — and the distinction matters for how the engine is built.</div>
+      <div class="prose">
+        <p><strong>One specified model, not a menu.</strong> The Deterministic Engine picks an algorithm from a menu because each candidate is a genuinely different machine and no one knows in advance which fits — hence the bake-off. The Probabilistic Engine works differently: the model is already specified — it is the state-space model. The prior and the posterior are not two models we select between; they are the <em>same</em> model at two moments. The prior is the belief before this month's data (last month's posterior carried forward); the posterior is the belief after. The Kalman filter computes the posterior from the prior and the data mechanically. There is nothing to "select" — which is a point in the engine's favor for diagnosability, because there is one model to reason about rather than a rotating winner.</p>
+        <p><strong>What is chosen versus estimated.</strong> Three things are set, and none is a bake-off. The <em>structure</em> — what sits in the state vector (level, trend, seasonality) and which drivers are modeled jointly with what covariances — is a design decision, made once. The <em>hyperparameters</em> — the process- and observation-noise variances and the covariance structure, collectively the dynamics fingerprint θ — are not chosen from a menu; they are <strong>estimated from data</strong>. This is fitting, not model selection: given the structure, find the parameter values that best explain the history. The <em>priors on those hyperparameters</em> — how wide, and the cluster structure they draw from — are the one genuine modeling choice, specified in design and tuned by backtest.</p>
+        <p><strong>The one real engineering choice: the estimation machinery.</strong> Where a genuine decision enters is <em>how</em> the fitting is done, and there are two families, used for two different jobs:</p>
+      </div>
+
+      <div class="fig">
+        <svg viewBox="0 0 680 300" role="img" aria-label="Two estimation methods: the Kalman filter runs fast monthly per-company state updates; MCMC sampling runs the periodic hierarchical re-estimation of dynamics across companies.">
+          <defs>
+            <marker id="ahF" markerWidth="9" markerHeight="9" refX="6" refY="3" orient="auto" markerUnits="userSpaceOnUse">
+              <path class="arrowhd" d="M0 0 L6 3 L0 6 Z"/>
+            </marker>
+          </defs>
+
+          <rect class="n-conv" x="40" y="50" width="280" height="150" rx="8"/>
+          <text class="t-conv" x="60" y="76" font-size="13" font-weight="600">Kalman filter + MLE</text>
+          <text class="t-conv" x="60" y="98" font-size="12">Fast, closed-form, linear-Gaussian</text>
+          <text class="t-conv" x="60" y="122" font-size="12">Job: monthly per-company</text>
+          <text class="t-conv" x="60" y="138" font-size="12">state update (predict / update)</text>
+          <text class="t-conv" x="60" y="166" font-size="11">Runs in milliseconds per company</text>
+          <text class="t-conv" x="60" y="184" font-size="11">Library: statsmodels</text>
+
+          <rect class="n-driver" x="360" y="50" width="280" height="150" rx="8"/>
+          <text class="t-driver" x="380" y="76" font-size="13" font-weight="600">Bayesian sampling (MCMC)</text>
+          <text class="t-driver" x="380" y="98" font-size="12">Full posteriors, hierarchical, fat tails</text>
+          <text class="t-driver" x="380" y="122" font-size="12">Job: quarterly re-estimation of</text>
+          <text class="t-driver" x="380" y="138" font-size="12">dynamics (θ) pooled across book</text>
+          <text class="t-driver" x="380" y="166" font-size="11">Seconds–minutes; the honest pooling route</text>
+          <text class="t-driver" x="380" y="184" font-size="11">Library: PyMC / NumPyro (candidate)</text>
+
+          <text class="t-mut" x="340" y="238" text-anchor="middle" font-size="12" font-weight="600">Not a bake-off — two tools for two jobs within one model</text>
+          <text class="t-mut" x="340" y="262" text-anchor="middle" font-size="11">Maps onto the monthly-state / quarterly-hyperparameter split</text>
+        </svg>
+        <div class="fig-cap">Diagram 6b — Estimation machinery. The Kalman filter handles the fast monthly state; MCMC handles the periodic hierarchical fit. Which MCMC framework is a backtest-resolved engineering choice, not a modeling one.</div>
+      </div>
+
+      <div class="prose">
+        <p>The <strong>Kalman filter with maximum-likelihood</strong> estimation is the fast, closed-form route — valid because the core model is linear and Gaussian — and it does the per-company monthly state updates in milliseconds. <strong>Full Bayesian sampling (MCMC)</strong> via a probabilistic programming framework is what the <em>hierarchical</em> part needs done properly: pooling the θ's across companies with full uncertainty, handling fatter-than-Gaussian tails, and producing genuine distributions over the hyperparameters rather than point estimates of them. We expect to use <strong>both</strong> — the Kalman filter for the fast monthly per-company updates, and a sampling framework for the periodic (quarterly) hierarchical re-estimation across the portfolio. That is not a bake-off; it is two computational tools for two jobs within the one model, and it maps exactly onto the monthly-state / quarterly-hyperparameter split described earlier. Which sampling framework (PyMC, NumPyro on JAX for speed, or Stan) is a genuine engineering decision to settle in the backtest phase, and it appears as such in the technology stack and the decision register.</p>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-label">Probabilistic Engine</div>
+      <div class="section-title">How this output feeds the shared rating system</div>
+      <div class="prose">
+        <p>The Probabilistic Engine's credit-status read is a <strong>distribution</strong> — a probability over rating states and distress, derived from where the forecast distribution sits relative to the distress thresholds. That distribution, or a summary of it, is handed to the shared Risk Positioning stage. Exactly like the Deterministic Engine, the Probabilistic Engine does <strong>not</strong> perform the final reconciliation itself; the shared stage does, consuming a distribution here just as it consumes a point there. See the Risk Positioning &amp; Monitoring tab.</p>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-label">Probabilistic Engine</div>
+      <div class="section-title">Arbitrary decision register</div>
+      <div class="section-desc">This register mirrors the Deterministic Engine's, and it makes three honest claims — while explicitly <em>not</em> claiming to be assumption-free. First, several of these knobs are data-set rather than hand-set (the pooled priors, the data-chosen cluster count). Second, they are testable: every one resolves against calibration on held-out data, so "is this value right" has an empirical answer, which the point-estimate analogues mostly lack. Third, they do not compound the same way — this is one coherent model, so a knob's effect is traceable rather than multiplying across many interacting layers. Several remain genuine judgment calls, and any budget or board-deck credibility weighting is as soft as a fixed decay rate; holding this approach to the same standard is what keeps the document trustworthy.</div>
+      <table class="dtable">
+        <thead>
+          <tr><th style="width:5%;">#</th><th style="width:24%;">Knob</th><th style="width:15%;">Where</th><th style="width:24%;">Value</th><th style="width:32%;">How it resolves</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>A</td><td>State components</td><td>Forecast core</td><td>level + trend + quarterly seasonality (provisional)</td><td>More = more flexible, more to estimate on thin data; add only if calibration improves</td></tr>
+          <tr><td>B</td><td>Process-noise priors</td><td>Forecast core</td><td>weakly-informative, pooled</td><td>Controls adapt-vs-smooth; partly data-set via pooling; prior width is a choice</td></tr>
+          <tr><td>C</td><td>Observation-noise priors</td><td>Forecast core</td><td>weakly-informative, pooled</td><td>Signal-vs-reporting-mess split; same status as B</td></tr>
+          <tr><td>D</td><td>Per-line representation</td><td>Feature / core</td><td>log revenue, logit margin, opex ratio (provisional)</td><td>Chosen per line for numerical health; empirical</td></tr>
+          <tr><td>E</td><td>Prior width for new companies</td><td>Init / hierarchy</td><td>deliberately wide (provisional)</td><td>How much the cluster prior constrains a fresh company; wide = evidence dominates fast</td></tr>
+          <tr><td>F</td><td>Cluster count</td><td>Hierarchy</td><td>data-chosen, expect 3&#8211;6</td><td>Let the data pick; may collapse to portfolio-wide if uninformative</td></tr>
+          <tr><td>G</td><td>Clustering feature set</td><td>Hierarchy</td><td>the &#952; vector (volatility, noise, seasonality, covariance)</td><td>What defines "moves alike"</td></tr>
+          <tr><td>H</td><td>Covariances to model</td><td>Forecast core</td><td>sparse: Revenue&#8596;OpEx, Revenue&#8596;WC (provisional)</td><td>Start sparse to avoid overfit; expand as data justifies</td></tr>
+          <tr><td>I</td><td>Leave-one-out scope</td><td>Hierarchy</td><td>per-company exclusion</td><td>Breaks circularity; also the eval split</td></tr>
+          <tr><td>J</td><td>Forecast horizon</td><td>Core output</td><td>1&#8211;2 quarters (provisional)</td><td>Beyond that bands too wide; matches flagging goal</td></tr>
+          <tr><td>K</td><td>Monte Carlo draws</td><td>Cascade</td><td>~10,000 (provisional)</td><td>Precision vs. compute</td></tr>
+          <tr><td>L</td><td>Hyperparameter recalibration cadence</td><td>Feedback</td><td>quarterly (provisional)</td><td>State monthly, &#952; quarterly; the split is a choice</td></tr>
+          <tr><td>M</td><td>Velocity surprise window</td><td>Risk positioning</td><td>past 4 months, recency-weighted (provisional)</td><td>Analogue of the Deterministic Engine's "3 qtrs drift"; backtest-set</td></tr>
+          <tr><td>N</td><td>Depth distress threshold</td><td>Risk positioning</td><td>covenant-proximity based (see Risk Positioning tab)</td><td>Defines the depth axis</td></tr>
+          <tr><td>O</td><td>Estimation framework</td><td>Forecast core</td><td>Kalman/statsmodels for monthly state; PyMC or NumPyro for hierarchical fit (candidate)</td><td>Engineering, not modeling, choice; speed vs. ergonomics settled in backtest</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+  </section>
+  <section class="tab-content" id="covenant">
+
+    <div class="section">
+      <div class="section-label">Covenant projection</div>
+      <div class="section-title">Shared framework</div>
+      <div class="section-desc">This is the cleanest, most visible payoff of the distributional approach — so it gets full room. The framework itself is shared; only the calculation forks.</div>
+      <div class="prose">
+        <p>Both engines use the identical Covenant Registry and machinery, and that plumbing is entirely engine-agnostic. The registry is a structured, per-PortCo store holding every financial covenant, its formula components, its threshold, and any step-down schedule — thresholds that tighten on a set timetable. At runtime, for each company, the system looks up all of that company's covenants, resolves each formula dynamically against the projected inputs, applies the correct threshold — including any future step-down that is in effect for the projected period — and assesses the result. Only financial covenants are in scope: leverage, coverage / FCCR, interest coverage, senior secured leverage, minimum liquidity, maximum capex, and a minimum EBITDA floor. Non-financial covenants — reporting, operational, affirmative — are out of scope. And only the covenants that actually appear in a given PortCo's agreement are computed. This entire framework is retained from the existing PRD and shared by both engines without modification.</p>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-label">Covenant projection</div>
+      <div class="section-title">The forked calculation</div>
+      <div class="prose">
+        <p>The only thing that differs between the engines is what the forecast core hands the covenant module.</p>
+        <p><strong>Deterministic Engine.</strong> It projects the covenant inputs as point estimates, computes the ratio, and compares it to the threshold. The output is <strong>headroom</strong> — <span class="eq">headroom % = (threshold &#8722; projected ratio) / threshold</span> — together with a binary pass/fail on that single projected path. There is no notion of likelihood: the projected path either clears the threshold or it does not.</p>
+        <p><strong>Probabilistic Engine.</strong> Because the covenant inputs are distributions, "will it breach" becomes "how much of the distribution sits on the wrong side of the threshold" — the <strong>probability of breach</strong>. It is worth being precise here, because it is easy to state wrongly: P(breach) is <em>not</em> the height of the density at the threshold; it is the <em>area</em> under the distribution beyond the threshold — the tail probability, the CDF tail. For a maximum-leverage covenant, which breaches when the ratio rises above a cap, it is the mass <em>above</em> the cap; for a minimum-coverage covenant, which breaches when the ratio falls below a floor, it is the mass <em>below</em> the floor. A threshold sitting at the distribution's median implies roughly a 50% breach probability; a threshold far out in the tail implies a few percent. Headroom, in the deterministic world, corresponds to how far into the body of the distribution the threshold sits in the probabilistic world.</p>
+        <p><strong>A subtlety worth stating — correlation.</strong> The covenant ratio is a <em>quotient</em> of two projected quantities — Net Debt over Adjusted EBITDA, say — and both are distributions, and they are <em>correlated</em>, because a bad quarter hits both at once. So P(breach) is the tail of a ratio of two correlated distributions. We compute it by Monte Carlo: draw joint samples of numerator and denominator, preserving their correlation; form the ratio within each draw; and count the fraction of draws that breach. This makes no assumption about the shape of the resulting distribution and handles the correlation correctly. A closed-form approximation does exist, but it is fragile precisely under correlation — so the spec calls for Monte Carlo.</p>
+      </div>
+
+      <div class="fig">
+        <svg viewBox="0 0 680 392" width="100%" role="img" aria-label="Covenant breach two ways: left, a deterministic point estimate with headroom to the threshold; right, a probability distribution with the tail beyond the threshold shaded as the probability of breach.">
+          <defs>
+            <marker id="ah7" markerWidth="9" markerHeight="9" refX="6" refY="3" orient="auto" markerUnits="userSpaceOnUse">
+              <path class="arrowhd" d="M0 0 L6 3 L0 6 Z"/>
+            </marker>
+            <clipPath id="tail7"><rect x="564" y="120" width="64" height="200"/></clipPath>
+          </defs>
+
+          <text class="t-pri" x="183" y="42" text-anchor="middle" font-size="13" font-weight="600">Deterministic — headroom</text>
+          <text class="t-pri" x="497" y="42" text-anchor="middle" font-size="13" font-weight="600">Probabilistic — P(breach)</text>
+          <line x1="340" y1="64" x2="340" y2="340" style="stroke:var(--border);stroke-width:1;"/>
+
+          <!-- LEFT panel: deterministic point + headroom -->
+          <text class="t-cov" x="54" y="150" font-size="11" font-weight="600">PASS &#183; point sits below threshold</text>
+          <line class="thresh" x1="250" y1="122" x2="250" y2="300"/>
+          <text class="t-mut" x="250" y="114" text-anchor="middle" font-size="11">threshold</text>
+          <!-- headroom bracket -->
+          <path class="link" d="M170 258 L170 252 L250 252 L250 258"/>
+          <text class="t-cov" x="210" y="245" text-anchor="middle" font-size="11">headroom</text>
+          <!-- point marker -->
+          <line class="axis" x1="170" y1="270" x2="170" y2="300"/>
+          <circle cx="170" cy="300" r="5" style="fill:var(--green-t);stroke:none;"/>
+          <text class="t-mut" x="170" y="288" text-anchor="middle" font-size="11">projected ratio</text>
+          <!-- axis -->
+          <line class="axis" x1="54" y1="300" x2="312" y2="300"/>
+          <text class="t-ter" x="312" y="318" text-anchor="end" font-size="11">leverage ratio &#8594;</text>
+
+          <!-- RIGHT panel: distribution + shaded breach tail -->
+          <path d="M390 300 C 440 300, 455 150, 500 150 C 545 150, 560 300, 620 300 Z" style="fill:var(--green-bg);stroke:none;"/>
+          <path d="M390 300 C 440 300, 455 150, 500 150 C 545 150, 560 300, 620 300 Z" clip-path="url(#tail7)" style="fill:var(--red-bg);stroke:none;"/>
+          <path class="dist-line" d="M390 300 C 440 300, 455 150, 500 150 C 545 150, 560 300, 620 300"/>
+          <line class="thresh" x1="564" y1="122" x2="564" y2="300"/>
+          <text class="t-mut" x="564" y="114" text-anchor="middle" font-size="11">threshold</text>
+          <line class="axis" x1="368" y1="300" x2="628" y2="300"/>
+          <text class="t-ter" x="628" y="318" text-anchor="end" font-size="11">leverage ratio &#8594;</text>
+          <!-- P(breach) label + leader -->
+          <path class="link" d="M602 172 L588 280" marker-end="url(#ah7)"/>
+          <text class="t-alert" x="632" y="150" text-anchor="end" font-size="11" font-weight="600">P(breach)</text>
+          <text class="t-alert" x="632" y="164" text-anchor="end" font-size="11">= shaded tail area</text>
+
+          <!-- Legend -->
+          <rect class="node n-cov"   x="54"  y="360" width="12" height="12" rx="2"/>
+          <text class="t-mut" x="72"  y="370" font-size="11">Covenant / distribution body</text>
+          <rect class="node n-alert" x="300" y="360" width="12" height="12" rx="2"/>
+          <text class="t-mut" x="318" y="370" font-size="11">Breach region (tail)</text>
+          <line class="thresh" x1="470" y1="366" x2="498" y2="366"/>
+          <text class="t-mut" x="504" y="370" font-size="11">Threshold</text>
+        </svg>
+        <div class="fig-cap">Diagram 7 — Covenant breach, two ways. Headroom is a gap on a single path; P(breach) is the shaded tail-area beyond the threshold.</div>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-label">Covenant projection</div>
+      <div class="section-title">Why covenant breach probability is the depth axis</div>
+      <div class="prose">
+        <p>Covenant proximity is the most concrete, most precisely defined "bad event" a portfolio company faces, and probability of breach is the Probabilistic Engine's strongest and cleanest output. Those two facts together fix a design decision that carries into the next tab: the <strong>depth</strong> axis of the monitoring quadrant — how bad is it right now, in absolute terms — is anchored to covenant proximity. For the Probabilistic Engine, depth is the probability of breach, or the probability of sitting within a defined margin of any covenant threshold. For the Deterministic Engine, depth is headroom-based proximity on the point estimate. The decision, stated once and carried forward: <strong>the depth axis is covenant proximity.</strong></p>
+      </div>
+    </div>
+
+  </section>
+  <section class="tab-content" id="positioning">
+
+    <div class="section">
+      <div class="section-label">Risk positioning &amp; monitoring</div>
+      <div class="section-title">The convergence — two engine outputs, one rating system</div>
+      <div class="section-desc">This is where the two engines rejoin. Scoring and rating live here, in the shared stage — lifted out of the individual engines — because positioning is downstream of the fork. The monitoring quadrant lives here too, for the same reason.</div>
+      <div class="prose">
+        <p>The shared Risk Positioning stage <strong>owns</strong> the rating and the two quadrant axes. Each engine's only job is to hand this stage the same <em>kind</em> of input, computed two different ways. The Deterministic Engine hands over <strong>points</strong>: a credit-status point from its classifier, and point-based covenant proximity (headroom). The Probabilistic Engine hands over <strong>distributions</strong>: a credit-status distribution, and a probability of breach.</p>
+        <p>The shared stage then does the <em>same</em> reconciliation regardless of source: it maps the input onto the firm's 1&#8211;5 internal rating scale, compares it to the analyst-assigned rating, and computes the rating gap. Because this reconciliation logic lives in the shared stage and not inside either engine, the two engines stay directly comparable and the rating gap is computed identically for both. The 1&#8211;5 internal rating is preserved as the authoritative anchor (retained from the existing PRD); each engine is a structured second opinion; and the gap between the engine-implied rating and the analyst-assigned rating is itself a signal worth surfacing.</p>
+      </div>
+
+      <div class="fig">
+        <svg viewBox="0 0 680 360" width="100%" role="img" aria-label="Convergence: deterministic point inputs and probabilistic distribution inputs flow into a shared rating reconciliation, which produces the depth and velocity axes feeding the monitoring quadrant.">
+          <defs>
+            <marker id="ah8" markerWidth="9" markerHeight="9" refX="6" refY="3" orient="auto" markerUnits="userSpaceOnUse">
+              <path class="arrowhd" d="M0 0 L6 3 L0 6 Z"/>
+            </marker>
+          </defs>
+
+          <!-- Inputs -->
+          <rect class="node n-shared" x="40" y="64" width="190" height="58" rx="6"/>
+          <text class="t-shared" x="128" y="86" text-anchor="middle" font-size="12" font-weight="600">Deterministic input</text>
+          <text class="t-shared" x="128" y="102" text-anchor="middle" font-size="11">credit point + headroom</text>
+          <circle cx="214" cy="112" r="4" style="fill:var(--primary);stroke:none;"/>
+
+          <rect class="node n-shared" x="40" y="170" width="190" height="58" rx="6"/>
+          <text class="t-shared" x="128" y="192" text-anchor="middle" font-size="12" font-weight="600">Probabilistic input</text>
+          <text class="t-shared" x="128" y="208" text-anchor="middle" font-size="11">credit dist. + P(breach)</text>
+          <path d="M198 218 C 204 218, 205 205, 212 205 C 219 205, 220 218, 226 218" style="fill:none;stroke:var(--primary);stroke-width:1.2;"/>
+
+          <!-- Reconciliation (teal) -->
+          <rect class="node n-conv" x="280" y="116" width="180" height="70" rx="6"/>
+          <text class="t-conv" x="370" y="140" text-anchor="middle" font-size="13" font-weight="600">Rating reconciliation</text>
+          <text class="t-conv" x="370" y="157" text-anchor="middle" font-size="11">&#8594; 1&#8211;5 scale</text>
+          <text class="t-conv" x="370" y="172" text-anchor="middle" font-size="11">gap vs. analyst rating</text>
+
+          <path class="link" d="M230 96 L279 138" marker-end="url(#ah8)"/>
+          <path class="link" d="M230 199 L279 164" marker-end="url(#ah8)"/>
+
+          <!-- Axes (right) -->
+          <rect class="node n-cov" x="470" y="64" width="166" height="58" rx="6"/>
+          <text class="t-cov" x="553" y="86" text-anchor="middle" font-size="12" font-weight="600">Depth axis</text>
+          <text class="t-cov" x="553" y="102" text-anchor="middle" font-size="11">covenant proximity</text>
+
+          <rect class="node n-shared" x="470" y="170" width="166" height="58" rx="6"/>
+          <text class="t-shared" x="553" y="192" text-anchor="middle" font-size="12" font-weight="600">Velocity axis</text>
+          <text class="t-shared" x="553" y="208" text-anchor="middle" font-size="11">deterioration speed</text>
+
+          <path class="link" d="M460 138 L469 96" marker-end="url(#ah8)"/>
+          <path class="link" d="M460 164 L469 199" marker-end="url(#ah8)"/>
+
+          <!-- Quadrant -->
+          <rect class="node n-shared" x="280" y="262" width="180" height="52" rx="6"/>
+          <text class="t-shared" x="370" y="292" text-anchor="middle" font-size="13" font-weight="600">Monitoring quadrant</text>
+
+          <path class="link" d="M520 122 L410 261" marker-end="url(#ah8)"/>
+          <path class="link" d="M520 228 L432 261" marker-end="url(#ah8)"/>
+
+          <!-- Legend -->
+          <rect class="node n-shared" x="40"  y="334" width="12" height="12" rx="2"/>
+          <text class="t-mut" x="58"  y="344" font-size="11">Input / structural</text>
+          <rect class="node n-conv"   x="220" y="334" width="12" height="12" rx="2"/>
+          <text class="t-mut" x="238" y="344" font-size="11">Convergent (reconciliation)</text>
+          <rect class="node n-cov"    x="450" y="334" width="12" height="12" rx="2"/>
+          <text class="t-mut" x="468" y="344" font-size="11">Depth (covenant)</text>
+        </svg>
+        <div class="fig-cap">Diagram 8 — The credit-rating convergence. A point (&#9679;) and a distribution glyph enter; the shared stage reconciles both onto the 1&#8211;5 scale and drives the two axes.</div>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-label">Risk positioning &amp; monitoring</div>
+      <div class="section-title">The two axes</div>
+      <div class="prose">
+        <p><strong>Depth axis — absolute risk, how bad is it right now.</strong> This axis is anchored to covenant proximity, the decision carried over from the Covenant Projection tab. For the Probabilistic Engine, depth is the probability of breach, or the probability of sitting within a defined margin of any threshold. For the Deterministic Engine, depth is headroom-based proximity on the point estimate. High on this axis means close to breach.</p>
+        <p><strong>Velocity axis — deterioration speed, how fast is it worsening.</strong> Here the Probabilistic Engine is distinctly strong. Velocity is the recent, accumulated, recency-weighted, standardized <em>surprise</em> — the innovation from the Kalman loop, actual minus predicted, scaled by its own uncertainty and signed for direction. A run of negative surprises — actuals landing repeatedly below the predicted distribution — <em>is</em> deterioration velocity. And it is self-scaling: a volatile company's ordinary wobble does not trigger it, because that company's wide bands absorb the wobble, while a steady company's small but persistent slide does trigger it. That is better than a fixed threshold precisely because it is calibrated to each company's own predictability. The window is the past four months, recency-weighted <em>(provisional — backtest-determined)</em>. The Deterministic Engine derives its velocity from its z-score and drift logic — its analogue — and both engines produce a comparable velocity number, so the quadrant works identically for either.</p>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-label">Risk positioning &amp; monitoring</div>
+      <div class="section-title">The monitoring quadrant</div>
+      <div class="section-desc">Retained conceptually from the existing PRD — it is the strongest framework in the original design and is preserved. Two orthogonal axes, deliberately not collapsed into a single composite, because keeping them separate is what preserves interpretability.</div>
+
+      <div class="fig">
+        <svg viewBox="0 0 680 460" width="100%" role="img" aria-label="Monitoring quadrant: depth (absolute risk) on the vertical axis, velocity (deterioration speed) on the horizontal; four cells Healthy, Watch, Critical, Early Warning.">
+          <!-- Y axis title -->
+          <text transform="rotate(-90 48 209)" x="48" y="209" text-anchor="middle" class="t-mut" font-size="11" font-weight="600">Absolute risk &#183; covenant proximity  (low &#8594; high)</text>
+          <!-- Cells -->
+          <rect x="112" y="64"  width="250" height="140" rx="6" style="fill:var(--amber-bg);stroke:var(--amber-t);stroke-width:1;"/>
+          <text class="t-addback" x="128" y="90"  font-size="13" font-weight="700">Watch</text>
+          <text class="t-addback" x="128" y="116" font-size="11">Known risk — close to covenants —</text>
+          <text class="t-addback" x="128" y="131" font-size="11">but stable, not accelerating. High</text>
+          <text class="t-addback" x="128" y="146" font-size="11">absolute risk alone is not an alarm</text>
+          <text class="t-addback" x="128" y="161" font-size="11">if it is not moving.</text>
+          <text class="t-addback" x="128" y="190" font-size="11" font-style="italic">&#8594; Maintain cadence.</text>
+
+          <rect x="372" y="64"  width="250" height="140" rx="6" style="fill:var(--red-bg);stroke:var(--red-t);stroke-width:1;"/>
+          <text class="t-alert" x="388" y="90"  font-size="13" font-weight="700">Critical</text>
+          <text class="t-alert" x="388" y="116" font-size="11">Close to breach AND worsening fast.</text>
+          <text class="t-alert" x="388" y="131" font-size="11">A genuine emergency.</text>
+          <text class="t-alert" x="388" y="160" font-size="11" font-style="italic">&#8594; Out-of-cycle review, covenant</text>
+          <text class="t-alert" x="388" y="175" font-size="11" font-style="italic">&#160;&#160;&#160;check, management call.</text>
+
+          <rect x="112" y="214" width="250" height="140" rx="6" style="fill:var(--green-bg);stroke:var(--green-t);stroke-width:1;"/>
+          <text class="t-cov" x="128" y="240" font-size="13" font-weight="700">Healthy</text>
+          <text class="t-cov" x="128" y="266" font-size="11">Low risk, not deteriorating.</text>
+          <text class="t-cov" x="128" y="281" font-size="11">The model confirms the rating.</text>
+          <text class="t-cov" x="128" y="316" font-size="11" font-style="italic">&#8594; Routine monitoring.</text>
+
+          <rect x="372" y="214" width="250" height="140" rx="6" style="fill:var(--purple-bg);stroke:var(--purple-t);stroke-width:1.75;"/>
+          <text class="t-driver" x="388" y="240" font-size="13" font-weight="700">Early Warning</text>
+          <text class="t-driver" x="608" y="240" text-anchor="end" font-size="11" font-weight="700">KEY</text>
+          <text class="t-driver" x="388" y="266" font-size="11">Looks safe on covenant proximity,</text>
+          <text class="t-driver" x="388" y="281" font-size="11">but deteriorating fast on its trend.</text>
+          <text class="t-driver" x="388" y="296" font-size="11">One-dimensional ratio review is</text>
+          <text class="t-driver" x="388" y="311" font-size="11">structurally blind to this.</text>
+          <text class="t-driver" x="388" y="337" font-size="11" font-style="italic">&#8594; Catch it before it turns Critical.</text>
+
+          <!-- X axis title -->
+          <text x="367" y="378" text-anchor="middle" class="t-mut" font-size="11" font-weight="600">Deterioration velocity  (low &#8594; high)</text>
+
+          <!-- Status legend -->
+          <rect x="112" y="398" width="12" height="12" rx="2" style="fill:var(--green-bg);stroke:var(--green-t);"/>
+          <text class="t-mut" x="130" y="408" font-size="11">Healthy</text>
+          <rect x="212" y="398" width="12" height="12" rx="2" style="fill:var(--amber-bg);stroke:var(--amber-t);"/>
+          <text class="t-mut" x="230" y="408" font-size="11">Watch</text>
+          <rect x="300" y="398" width="12" height="12" rx="2" style="fill:var(--red-bg);stroke:var(--red-t);"/>
+          <text class="t-mut" x="318" y="408" font-size="11">Critical</text>
+          <rect x="392" y="398" width="12" height="12" rx="2" style="fill:var(--purple-bg);stroke:var(--purple-t);"/>
+          <text class="t-mut" x="410" y="408" font-size="11">Early Warning (key)</text>
+
+          <text class="t-ter" x="112" y="430" font-size="11">Probabilistic placement can carry a confidence halo (e.g. 80% Early Warning /</text>
+          <text class="t-ter" x="112" y="445" font-size="11">20% Healthy); the Deterministic Engine places a hard dot.</text>
+        </svg>
+        <div class="fig-cap">Diagram 9 — The monitoring quadrant. Early Warning is the highest-value cell and the whole reason for keeping the two axes separate.</div>
+      </div>
+
+      <div class="prose">
+        <p>The four quadrants read as follows. <strong>Healthy</strong> (low depth, low velocity): low risk and not deteriorating; the model confirms the rating; routine monitoring. <strong>Watch</strong> (high depth, low velocity): already a known risk, close to covenants, but stable and not accelerating; the rating already reflects it, so cadence is maintained — high absolute risk alone is not an alarm if it is not moving. <strong>Critical</strong> (high depth, high velocity): close to breach and worsening fast; a genuine emergency warranting out-of-cycle review, a covenant check, and a management call. <strong>Early Warning</strong> (low depth, high velocity): the highest-value quadrant, and the entire reason for the two-axis design. A company here still looks safe on absolute covenant proximity but is deteriorating fast on its own trend — the damage is happening in the trajectory before it shows in the levels. Traditional one-dimensional ratio review, which sees only depth, is structurally blind to this; catching it early, before it migrates into Critical, is the core value proposition of the system.</p>
+        <p><strong>A probabilistic enhancement.</strong> Because the axes are probabilistic, a company's quadrant <em>placement</em> can itself carry uncertainty — it is not simply "in Early Warning" but, say, "80% likely Early Warning, 20% Healthy," which the dashboard can render as a position with a confidence halo rather than a hard dot. The Deterministic Engine can only place a hard dot. Same quadrant, richer read.</p>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-label">Risk positioning &amp; monitoring</div>
+      <div class="section-title">Dashboard, cadence, and the feedback loop</div>
+      <div class="section-desc">Output is not PDFs, Excel exports, or alert-lists — a deliberate change from the original design. Everything lives in one interface in Opstream: a dashboard that refreshes every month, lets the team toggle back to prior months, and shows how past predictions actually performed against what happened.</div>
+      <div class="prose">
+        <p><strong>Monthly auto-refresh.</strong> New monthly data kicks off the pipeline automatically. Both engines are comfortable with this cadence, and it is retained from the original design.</p>
+        <p><strong>Historical toggle and prediction-versus-actual analytics.</strong> These are built from an immutable monthly log. Each month, the system freezes that month's inputs, the prediction or distribution, and the flags raised; later it appends the actuals and an analyst outcome tag. That single log is simultaneously the dashboard's history, the audit trail, and the evaluation set — one artifact serving all three purposes.</p>
+        <p><strong>Continuous improvement comes in three distinct mechanisms</strong> — and they must be kept distinct, because one of them carries a subtle trap.</p>
+        <p><em>1. Belief updating (automatic, safe).</em> As history accumulates, the model sharpens its estimate of each company. This is simply the engine doing its job, not "improving" in any risky sense. Monthly.</p>
+        <p><em>2. Hyperparameter recalibration (periodic, human-gated, safe).</em> As history grows, the tunable settings — the &#952;'s, the thresholds — are re-estimated and reviewed before going live. Quarterly. A change is accepted only if it <em>improves</em> calibration on the frozen log. That frozen-log calibration is the shared referee that stops the monthly and quarterly loops from amplifying each other into a twitchy, over-reactive model.</p>
+        <p><em>3. Learning from flag outcomes (powerful, and the one to be careful with).</em> Here is the trap: a flag changes what happens next. If a flag prompts an intervention and the company then recovers, the flag looks wrong in the data — but it was right, and the intervention is <em>why</em>. Feeding that back naively would train the model to stop flagging exactly the companies where flagging worked. So the automatic signal is the <strong>calibration of the forecasts</strong>, not the flags — because forecasts are intervention-proof: whether next quarter landed in the predicted range does not depend on whether anyone intervened. Flag outcomes are kept as human-labeled context, reviewed periodically to spot patterns, and they feed <em>deliberate, gated</em> model changes — never an automatic retrain on flag labels. Everything is logged immutably; changes are periodic, reviewed events with a before/after calibration comparison, never silent drift. For a tool whose whole value is investment-committee trust, "the model changed, and here is exactly how and why it is better" beats "it continuously self-improves," which is un-auditable and a liability in a risk tool.</p>
+        <p><strong>Calibration is the north-star metric.</strong> When the model said it was 70% confident, did the thing happen about 70% of the time? That is the clean, intervention-proof measure of success, and it is the primary thing the dashboard surfaces. It is also how the two engines are compared honestly.</p>
+        <p><strong>Cold-start and low-confidence display.</strong> For a company with little history and no good cluster, the model says so — "insufficient history, wide bands, low confidence" — rather than showing a falsely confident dot. This applies to both engines, and it is a deliberate design position, so that honest uncertainty is a feature of the interface rather than an awkward gap in it.</p>
+      </div>
+
+      <div class="fig">
+        <svg viewBox="0 0 680 368" width="100%" role="img" aria-label="Feedback loop: the immutable monthly log feeds belief update, hyperparameter recalibration (gated by calibration), and flag-outcome review; calibration on the frozen log is the referee.">
+          <defs>
+            <marker id="ah10" markerWidth="9" markerHeight="9" refX="6" refY="3" orient="auto" markerUnits="userSpaceOnUse">
+              <path class="arrowhd" d="M0 0 L6 3 L0 6 Z"/>
+            </marker>
+          </defs>
+
+          <!-- Log -->
+          <rect class="node n-shared" x="44" y="138" width="176" height="84" rx="6"/>
+          <text class="t-shared" x="132" y="164" text-anchor="middle" font-size="13" font-weight="600">Immutable monthly log</text>
+          <text class="t-shared" x="132" y="182" text-anchor="middle" font-size="11">each month: inputs,</text>
+          <text class="t-shared" x="132" y="196" text-anchor="middle" font-size="11">prediction, flags</text>
+          <text class="t-shared" x="132" y="212" text-anchor="middle" font-size="11">later: actuals, outcome tag</text>
+
+          <!-- Calibration referee -->
+          <rect class="node n-conv" x="256" y="150" width="150" height="60" rx="6"/>
+          <text class="t-conv" x="331" y="176" text-anchor="middle" font-size="12" font-weight="600">Calibration referee</text>
+          <text class="t-conv" x="331" y="192" text-anchor="middle" font-size="11">on the frozen log</text>
+          <path class="link" d="M220 180 L255 180" marker-end="url(#ah10)"/>
+          <text class="t-ter" x="331" y="230" text-anchor="middle" font-size="11">also: the engine-comparison metric</text>
+
+          <!-- Mechanisms -->
+          <rect class="node n-conv" x="430" y="54" width="206" height="56" rx="6"/>
+          <text class="t-conv" x="533" y="78" text-anchor="middle" font-size="12" font-weight="600">Belief update</text>
+          <text class="t-conv" x="533" y="94" text-anchor="middle" font-size="11">monthly &#183; automatic</text>
+
+          <rect class="node n-shared" x="430" y="150" width="206" height="56" rx="6"/>
+          <text class="t-shared" x="533" y="174" text-anchor="middle" font-size="12" font-weight="600">Hyperparameter recalibration</text>
+          <text class="t-shared" x="533" y="190" text-anchor="middle" font-size="11">quarterly &#183; gated by calibration</text>
+
+          <rect class="node n-addback" x="430" y="246" width="206" height="64" rx="6"/>
+          <text class="t-addback" x="533" y="270" text-anchor="middle" font-size="12" font-weight="600">Flag-outcome review</text>
+          <text class="t-addback" x="533" y="286" text-anchor="middle" font-size="11">human &#183; deliberate &#183; gated</text>
+          <text class="t-addback" x="533" y="300" text-anchor="middle" font-size="11">never an auto-retrain</text>
+
+          <path class="link" d="M190 138 L429 84"  marker-end="url(#ah10)"/>
+          <path class="link" d="M406 180 L429 178" marker-end="url(#ah10)"/>
+          <text class="t-mut" x="417" y="170" text-anchor="middle" font-size="11">gates</text>
+          <path class="link" d="M190 222 L429 280" marker-end="url(#ah10)"/>
+
+          <!-- Legend -->
+          <rect class="node n-shared"  x="44"  y="338" width="12" height="12" rx="2"/>
+          <text class="t-mut" x="62"  y="348" font-size="11">Log / process</text>
+          <rect class="node n-conv"    x="200" y="338" width="12" height="12" rx="2"/>
+          <text class="t-mut" x="218" y="348" font-size="11">Belief / calibration</text>
+          <rect class="node n-addback" x="380" y="338" width="12" height="12" rx="2"/>
+          <text class="t-mut" x="398" y="348" font-size="11">Flag-outcome review (caution)</text>
+        </svg>
+        <div class="fig-cap">Diagram 10 — The feedback loop. Calibration on the frozen log gates recalibration and is the intervention-proof metric that compares the two engines.</div>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-label">Risk positioning &amp; monitoring</div>
+      <div class="section-title">How the two engines are compared</div>
+      <div class="prose">
+        <p>Whoever picks the metric picks the winner, so the scoring discipline is settled up front. The <strong>primary</strong> metric is flagging performance: did the deviations each engine raised correspond to companies that actually got into trouble, and at what false-alarm rate? The <strong>secondary</strong> metric is calibration, which is directly meaningful for the Probabilistic Engine's distributions; the Deterministic Engine's points must be converted, or the comparison framed appropriately, for calibration to apply. Point accuracy (RMSE) is <strong>tertiary and explicitly not decisive</strong> — it is reported, but it is not the judge, because it is the one axis the Probabilistic Engine deliberately trades away in exchange for honest uncertainty. Judging on RMSE would be judging one engine on the very thing it chose not to optimize.</p>
+        <p>There are two evaluation splits, and they test different things. The <strong>held-out time</strong> split trains on earlier months and tests on later ones; it measures forward flagging, which is the deployment reality. The <strong>held-out companies</strong> split fits the hierarchy on a subset of companies and tests the prior on entirely new ones; it measures cold-start and onboarding — which is most of the portfolio — and is the direct test of whether pooling actually helps. That second split is the very same leave-one-out operation that breaks the circularity in the hierarchical prior: the thing that keeps the model honest and the thing that tests it are one and the same.</p>
+      </div>
+    </div>
+
+  </section>
+  <section class="tab-content" id="techspec">
+    <div class="section"><div class="section-label">Tech spec</div><div class="section-title">Retained from the existing PRD</div><div class="placeholder-note">The technology stack, infrastructure, and delivery approach below are carried over unchanged from the original Portfolio Monitoring PRD. They describe the Deterministic Engine's environment; the Probabilistic Engine shares the same firm-boundary infrastructure, with additional probabilistic-modeling libraries to be specified during the backtest phase.</div></div>
+
+
+  <div class="section">
+    <div class="section-label">Infrastructure</div>
+    <h2 class="section-title">Environment &amp; Deployment</h2>
+    <p class="section-desc">Built locally in VS Code for development and validation phases. Migrated to Azure cloud for production automation once outputs are validated. All financial data remains within the firm boundary at all times.</p>
+    <div class="grid-3">
+      <div class="stat-card">
+        <div class="val">Local</div>
+        <div class="lbl">Dev / Validation</div>
+        <div class="sub">VS Code + Python, SQLite database</div>
+      </div>
+      <div class="stat-card">
+        <div class="val">Azure</div>
+        <div class="lbl">Production</div>
+        <div class="sub">Scheduled trigger, Postgres, automated delivery</div>
+      </div>
+      <div class="stat-card">
+        <div class="val">Ollama</div>
+        <div class="lbl">LLM Layer</div>
+        <div class="sub">Llama 3 on localhost — zero external data transmission</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-label">Software &amp; Packages</div>
+    <h2 class="section-title">Full Technology Stack</h2>
+    <p class="section-desc">All software listed below runs within the firm's environment. No financial data is transmitted to any external service.</p>
+
+    <table class="sw-table">
+      <thead>
+        <tr>
+          <th>Software / Package</th>
+          <th>Category</th>
+          <th>Purpose in Pipeline</th>
+          <th>Install Method</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><strong>Python 3.11+</strong></td>
+          <td><span class="sw-cat install">Install</span></td>
+          <td>Core runtime for all pipeline code</td>
+          <td>python.org/downloads</td>
+        </tr>
+        <tr>
+          <td><strong>VS Code</strong></td>
+          <td><span class="sw-cat install">Install</span></td>
+          <td>Development environment for writing, testing, and running pipeline code</td>
+          <td>code.visualstudio.com</td>
+        </tr>
+        <tr>
+          <td><strong>Ollama + Llama 3</strong></td>
+          <td><span class="sw-cat local">Local LLM</span></td>
+          <td>Locally hosted LLM for narrative generation — no external API calls required</td>
+          <td>ollama.com → ollama pull llama3</td>
+        </tr>
+        <tr>
+          <td><strong>pandas</strong></td>
+          <td><span class="sw-cat python">Python</span></td>
+          <td>Core data manipulation — reads, cleans, and transforms financial statement data</td>
+          <td>pip install pandas</td>
+        </tr>
+        <tr>
+          <td><strong>numpy</strong></td>
+          <td><span class="sw-cat python">Python</span></td>
+          <td>Numerical computing — powers ratio calculations, z-scores, and score normalization</td>
+          <td>pip install numpy</td>
+        </tr>
+        <tr>
+          <td><strong>scikit-learn</strong></td>
+          <td><span class="sw-cat python">Python</span></td>
+          <td>Isolation Forest (liquidity anomaly), Ridge regression (covenant + trajectory forecast), preprocessing utilities</td>
+          <td>pip install scikit-learn</td>
+        </tr>
+        <tr>
+          <td><strong>xgboost</strong></td>
+          <td><span class="sw-cat python">Python</span></td>
+          <td>Credit status classifier — trained on historical 1–5 internal ratings to predict ML-implied rating</td>
+          <td>pip install xgboost</td>
+        </tr>
+        <tr>
+          <td><strong>shap</strong></td>
+          <td><span class="sw-cat python">Python</span></td>
+          <td>SHAP value extraction — identifies top 3–5 financial drivers of each company's risk score (Deterministic Engine)</td>
+          <td>pip install shap</td>
+        </tr>
+        <tr>
+          <td><strong>statsmodels</strong></td>
+          <td><span class="sw-cat python">Python</span></td>
+          <td>Probabilistic Engine — state-space models (UnobservedComponents / SARIMAX) and the Kalman filter for fast per-company monthly state updates</td>
+          <td>pip install statsmodels</td>
+        </tr>
+        <tr>
+          <td><strong>PyMC</strong> <span style="color:var(--tertiary);font-size:11px;">or NumPyro</span></td>
+          <td><span class="sw-cat python">Python</span></td>
+          <td>Probabilistic Engine — full Bayesian sampling (MCMC) for the quarterly hierarchical re-estimation of dynamics (θ) pooled across companies. <em>Candidate — final choice (PyMC vs. NumPyro/JAX vs. Stan) settled in backtest for speed vs. ergonomics</em></td>
+          <td>pip install pymc</td>
+        </tr>
+        <tr>
+          <td><strong>arviz</strong></td>
+          <td><span class="sw-cat python">Python</span></td>
+          <td>Probabilistic Engine — posterior diagnostics and, critically, calibration checks (does a stated 70% actually happen ~70% of the time) — the north-star evaluation metric</td>
+          <td>pip install arviz</td>
+        </tr>
+        <tr>
+          <td><strong>scipy</strong></td>
+          <td><span class="sw-cat python">Python</span></td>
+          <td>Probabilistic Engine — Monte Carlo sampling through the accounting identities, tail-probability (P-breach) integration, and general numerical routines</td>
+          <td>pip install scipy</td>
+        </tr>
+        <tr>
+          <td><strong>scikit-learn</strong> <span style="color:var(--tertiary);font-size:11px;">(clustering)</span></td>
+          <td><span class="sw-cat existing">Shared</span></td>
+          <td>Probabilistic Engine — unsupervised clustering of companies in dynamics-space (e.g. Gaussian mixture) to discover behavioral groups; already present for the Deterministic Engine</td>
+          <td>pip install scikit-learn</td>
+        </tr>
+        <tr>
+          <td><strong>sqlalchemy</strong></td>
+          <td><span class="sw-cat python">Python</span></td>
+          <td>Database ORM — connects Python to SQLite (local) or Postgres (production) for historical snapshot storage</td>
+          <td>pip install sqlalchemy</td>
+        </tr>
+        <tr>
+          <td><strong>requests</strong></td>
+          <td><span class="sw-cat python">Python</span></td>
+          <td>HTTP client — used for iLevel API connection and Ollama localhost API calls</td>
+          <td>pip install requests</td>
+        </tr>
+        <tr>
+          <td><strong>python-dotenv</strong></td>
+          <td><span class="sw-cat python">Python</span></td>
+          <td>Secure credential management — stores iLevel API keys in .env file, never in code</td>
+          <td>pip install python-dotenv</td>
+        </tr>
+        <tr>
+          <td><strong>openpyxl</strong></td>
+          <td><span class="sw-cat python">Python</span></td>
+          <td>Excel read/write — handles iLevel exports and generates portfolio watchlist output</td>
+          <td>pip install openpyxl</td>
+        </tr>
+        <tr>
+          <td><strong>reportlab</strong></td>
+          <td><span class="sw-cat python">Python</span></td>
+          <td>PDF generation — produces per-company report output including SHAP charts and LLM narrative</td>
+          <td>pip install reportlab</td>
+        </tr>
+        <tr>
+          <td><strong>matplotlib / seaborn</strong></td>
+          <td><span class="sw-cat python">Python</span></td>
+          <td>Chart generation — SHAP waterfall charts, score trend charts embedded in PDF reports</td>
+          <td>pip install matplotlib seaborn</td>
+        </tr>
+        <tr>
+          <td><strong>schedule</strong></td>
+          <td><span class="sw-cat python">Python</span></td>
+          <td>Pipeline scheduling — triggers automatic run on a defined cadence (local dev only; Azure handles scheduling in production)</td>
+          <td>pip install schedule</td>
+        </tr>
+        <tr>
+          <td><strong>iLevel</strong></td>
+          <td><span class="sw-cat existing">Existing</span></td>
+          <td>Source of all portfolio company financial data — income statement, balance sheet, cash flow, addback line items. API access confirmed.</td>
+          <td>Existing firm system</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="section">
+    <div class="section-label">Project Structure</div>
+    <h2 class="section-title">Codebase Folder Layout</h2>
+    <p class="section-desc">All pipeline code lives under a single <code style="background:var(--bg2);padding:2px 6px;border-radius:3px;font-size:11px;">portfolio_monitoring/</code> project folder. Each pipeline layer maps to one Python module.</p>
+    <div style="background:var(--bg2);border:1px solid var(--border);border-radius:6px;padding:20px;font-family:monospace;font-size:12px;color:var(--primary);line-height:2;">
+      portfolio_monitoring/<br>
+      &nbsp;&nbsp;├── data/<br>
+      &nbsp;&nbsp;│&nbsp;&nbsp;&nbsp;├── raw/ &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:var(--tertiary);font-family:sans-serif;font-size:11px;">← iLevel API pulls land here</span><br>
+      &nbsp;&nbsp;│&nbsp;&nbsp;&nbsp;├── processed/ &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:var(--tertiary);font-family:sans-serif;font-size:11px;">← validated, ratio-enriched data</span><br>
+      &nbsp;&nbsp;│&nbsp;&nbsp;&nbsp;└── database/ &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:var(--tertiary);font-family:sans-serif;font-size:11px;">← SQLite local / Postgres production</span><br>
+      &nbsp;&nbsp;├── models/ &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:var(--tertiary);font-family:sans-serif;font-size:11px;">← trained ML models saved here</span><br>
+      &nbsp;&nbsp;├── pipeline/<br>
+      &nbsp;&nbsp;│&nbsp;&nbsp;&nbsp;├── ingest.py &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:var(--tertiary);font-family:sans-serif;font-size:11px;">← iLevel API connection (Layer 1)</span><br>
+      &nbsp;&nbsp;│&nbsp;&nbsp;&nbsp;├── validate.py &nbsp;&nbsp;&nbsp;&nbsp;<span style="color:var(--tertiary);font-family:sans-serif;font-size:11px;">← schema checks + ratio computation (Layer 2)</span><br>
+      &nbsp;&nbsp;│&nbsp;&nbsp;&nbsp;├── features.py &nbsp;&nbsp;&nbsp;&nbsp;<span style="color:var(--tertiary);font-family:sans-serif;font-size:11px;">← feature engineering (Layer 2)</span><br>
+      &nbsp;&nbsp;│&nbsp;&nbsp;&nbsp;├── score.py &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:var(--tertiary);font-family:sans-serif;font-size:11px;">← ML models + score aggregation (Layers 3–4)</span><br>
+      &nbsp;&nbsp;│&nbsp;&nbsp;&nbsp;├── explain.py &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:var(--tertiary);font-family:sans-serif;font-size:11px;">← SHAP extraction (Layer 5)</span><br>
+      &nbsp;&nbsp;│&nbsp;&nbsp;&nbsp;├── narrate.py &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:var(--tertiary);font-family:sans-serif;font-size:11px;">← Ollama LLM calls (Layer 6)</span><br>
+      &nbsp;&nbsp;│&nbsp;&nbsp;&nbsp;└── alert.py &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:var(--tertiary);font-family:sans-serif;font-size:11px;">← priority classification + delivery (Layers 7–8)</span><br>
+      &nbsp;&nbsp;├── reports/ &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:var(--tertiary);font-family:sans-serif;font-size:11px;">← PDF + XLSX outputs written here</span><br>
+      &nbsp;&nbsp;├── .env &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:var(--tertiary);font-family:sans-serif;font-size:11px;">← API credentials (never committed to git)</span><br>
+      &nbsp;&nbsp;├── requirements.txt &nbsp;&nbsp;<span style="color:var(--tertiary);font-family:sans-serif;font-size:11px;">← package list for server deployment</span><br>
+      &nbsp;&nbsp;└── run_pipeline.py &nbsp;&nbsp;&nbsp;&nbsp;<span style="color:var(--tertiary);font-family:sans-serif;font-size:11px;">← single entry point — runs all 8 layers</span><br>
+    </div>
+  </div>
+
+  </section>
+  <section class="tab-content" id="roadmap">
+    <div class="section">
+      <div class="section-label">Roadmap</div>
+      <div class="section-title">Two concurrent tracks, quarterly targets</div>
+      <div class="section-desc">The build runs as two parallel tracks on different clocks. The infrastructure and both engines are built now on the roughly 50 companies we already have data for. In parallel, a longer and less certain data track backfills, reconciles, and expands coverage toward the full internal set. The tracks meet at the data-complete milestone, which unlocks an architecture overhaul toward a steady-state production solution. Targets are set by quarter; the data lanes are shown fading rather than ending on a clean date, because their timing depends on work that is genuinely uncertain.</div>
+
+      <div class="callout">
+        <div class="ct">Why the honest fade</div>
+        <div class="cb">The data track is the long pole and its completion date is not yet knowable — incomplete structured data needs backfilling, unstructured data needs reconciling into the existing schema, and further companies need the same treatment. Rather than imply a precise finish, the data lanes fade into the right of the grid. The one firm expectation is that full internal-data readiness lands <strong>at least into 2027</strong>, and that milestone — not a fixed date — is what gates the overhaul.</div>
+      </div>
+
+      <div class="g-wrap">
+        <div class="g-head">
+          <div class="g-lbl"></div>
+          <div class="g-months q6">
+            <div class="g-month now">Q3 2026</div>
+            <div class="g-month">Q4 2026</div>
+            <div class="g-month">Q1 2027</div>
+            <div class="g-month">Q2 2027</div>
+            <div class="g-month">Q3 2027</div>
+            <div class="g-month">Q4 2027</div>
+          </div>
+        </div>
+
+        <div class="track-head">
+          <span class="th-name">Track B &#183; Infrastructure &amp; Engines</span>
+          <span class="th-tag infra">builds now on ~50 companies</span>
+        </div>
+
+        <div class="g-row">
+          <div class="g-rl"><span class="g-rn">Core infrastructure</span><span class="g-rs">Pipeline, storage, monthly log, Opstream dashboard</span></div>
+          <div class="g-track"><div class="g-qgrid"><span></span><span></span><span></span><span></span><span></span><span></span></div><div class="bar b-v1" style="left:0.00%; width:33.33%;">Setup</div></div>
+        </div>
+        <div class="g-row">
+          <div class="g-rl"><span class="g-rn">Deterministic Engine</span><span class="g-rs">Build &#183; backtest &#183; prune</span></div>
+          <div class="g-track"><div class="g-qgrid"><span></span><span></span><span></span><span></span><span></span><span></span></div><div class="bar b-v2" style="left:0.00%; width:66.67%;">Build &amp; backtest</div></div>
+        </div>
+        <div class="g-row">
+          <div class="g-rl"><span class="g-rn">Probabilistic Engine</span><span class="g-rs">Build &#183; backtest &#183; prune (concurrent)</span></div>
+          <div class="g-track"><div class="g-qgrid"><span></span><span></span><span></span><span></span><span></span><span></span></div><div class="bar b-v2" style="left:0.00%; width:66.67%;">Build &amp; backtest</div></div>
+        </div>
+        <div class="g-row">
+          <div class="g-rl"><span class="g-rn">Evaluation &amp; convergence</span><span class="g-rs">Bake-off, calibration, technique pruning</span></div>
+          <div class="g-track"><div class="g-qgrid"><span></span><span></span><span></span><span></span><span></span><span></span></div><div class="bar b-v3 fade" style="left:16.67%; width:83.33%;">Ongoing evaluation</div></div>
+        </div>
+
+        <div class="track-head">
+          <span class="th-name">Track A &#183; Data</span>
+          <span class="th-tag data">concurrent, longer horizon</span>
+          <span class="th-desc">~120&#8211;150 companies total &#183; ~5-year average life &#183; high-level line items only</span>
+        </div>
+
+        <div class="g-row">
+          <div class="g-rl"><span class="g-rn">Structured backfilling</span><span class="g-rs">Complete incomplete data, initial ~50</span></div>
+          <div class="g-track"><div class="g-qgrid"><span></span><span></span><span></span><span></span><span></span><span></span></div><div class="bar b-v4" style="left:0.00%; width:50.00%;">Backfill</div></div>
+        </div>
+        <div class="g-row">
+          <div class="g-rl"><span class="g-rn">Unstructured reconciliation</span><span class="g-rs">Map validated unstructured data into schema</span></div>
+          <div class="g-track"><div class="g-qgrid"><span></span><span></span><span></span><span></span><span></span><span></span></div><div class="bar b-v4 fade" style="left:0.00%; width:83.33%;">Reconcile</div></div>
+        </div>
+        <div class="g-row">
+          <div class="g-rl"><span class="g-rn">Company expansion</span><span class="g-rs">Onboard remaining companies &#183; ~50 &#8594; ~120&#8211;150</span></div>
+          <div class="g-track"><div class="g-qgrid"><span></span><span></span><span></span><span></span><span></span><span></span></div><div class="bar b-v4 fade" style="left:16.67%; width:83.33%;">Expand coverage</div></div>
+        </div>
+        <div class="g-row">
+          <div class="g-rl"><span class="g-rn">External data</span><span class="g-rs">Scope &amp; potentially acquire to enrich models</span></div>
+          <div class="g-track"><div class="g-qgrid"><span></span><span></span><span></span><span></span><span></span><span></span></div><div class="bar b-v5 fade" style="left:50.00%; width:50.00%;">Scope (optional)</div></div>
+        </div>
+
+        <div class="g-ms-row">
+          <div class="g-ms-lbl">Milestones</div>
+          <div class="g-ms-track">
+            <div class="ms-pin" style="left:33.33%; background:var(--teal-bg); color:var(--teal-t);">Engines live on ~50</div>
+            <div class="ms-pin" style="left:83.33%; background:var(--amber-bg); color:var(--amber-t);">Full internal data (2027+)</div>
+          </div>
+        </div>
+
+        <div class="leg">
+          <div class="leg-i"><span class="leg-s" style="background:var(--blue-bg);"></span>Infrastructure</div>
+          <div class="leg-i"><span class="leg-s" style="background:var(--purple-bg);"></span>Engines</div>
+          <div class="leg-i"><span class="leg-s" style="background:var(--green-bg);"></span>Evaluation</div>
+          <div class="leg-i"><span class="leg-s" style="background:var(--amber-bg);"></span>Data reconciliation</div>
+          <div class="leg-i"><span class="leg-s" style="background:var(--pc-bg);"></span>External data</div>
+          <div class="leg-i"><span class="leg-s" style="background:linear-gradient(to right,var(--secondary),transparent);"></span>Fade = open-ended / uncertain</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-label">Track A &#183; Data</div>
+      <div class="section-title">The data challenge, in detail</div>
+      <div class="prose">
+        <p>The data track is the genuine risk in this program, and the roadmap treats it honestly rather than optimistically. We do not begin from a clean dataset. What we have and what we must do breaks into distinct lanes, each with its own difficulty and its own uncertain timing.</p>
+        <p><strong>Structured backfilling.</strong> The structured data we hold for the initial group of roughly 50 companies is real but <em>incomplete</em>. Before it can drive either engine reliably, gaps must be backfilled. This is the most tractable lane and starts immediately.</p>
+        <p><strong>Unstructured reconciliation.</strong> We also hold unstructured data for these companies. The good news is that it is validated and professionally structured at source, so the work is not cleaning &mdash; it is <em>reconciliation</em>: mapping that data into the structure our existing data uses so the two are consistent and jointly usable. This is ongoing and less predictable than backfilling.</p>
+        <p><strong>Company expansion.</strong> We have similar data on additional companies that will require the same reconciliation process. Coverage therefore ramps over time from the initial ~50 toward an estimated <strong>120&#8211;150 companies in total</strong>, with an average life of roughly five years each (this varies and is not yet precisely known). The expansion lane is what eventually lets the models take full advantage of all internal data.</p>
+        <p><strong>A scope reducer worth stating.</strong> We do not need full, detailed three-statement models for every company. The system is concerned only with the higher-level line items that drive the forecast and the covenants, which materially reduces the reconciliation burden per company and makes the ~120&#8211;150 target realistic.</p>
+        <p><strong>External data (later, optional).</strong> Eventually we may scope out purchasing external data to enrich the models. This is deliberately placed late and marked optional; it is an enhancement, not a dependency, and it is contingent on what the internal data and the engines reveal first.</p>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-label">Track B &#183; Infrastructure &amp; Engines</div>
+      <div class="section-title">Building now on what we have</div>
+      <div class="prose">
+        <p>The infrastructure and both engines are built starting now, on the roughly 50 companies for which we already have workable data &mdash; we do not wait for the data track to finish. This lets us stand up the pipeline, storage, the immutable monthly log, and the Opstream dashboard early, and get both the Deterministic and Probabilistic engines running against real (if partial) data.</p>
+        <p>The two engines are developed <strong>concurrently</strong>, as peers. Running against the initial cohort, the evaluation-and-convergence lane compares them on flagging performance and calibration, and &mdash; just as importantly &mdash; prunes techniques that do not earn their place. Over the course of the buildout we expect to settle on a clearer path forward: which engine, or which combination, is carrying the weight, and which candidate methods within each have been dropped.</p>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-label">Cross-track milestone</div>
+      <div class="section-title">Full data readiness &#8594; architecture overhaul</div>
+      <div class="prose">
+        <p>The two tracks converge at a single pivotal milestone: the point at which the full internal dataset has been reconciled and is usable. Based on the data challenges above, we expect this to land <strong>at least into 2027</strong> &mdash; the roadmap marks it as a milestone rather than a fixed date, because its timing depends on the data work and should not be over-promised.</p>
+        <p>Reaching that milestone, combined with the technique pruning and convergence achieved on the engine side along the way, sets up an <strong>architecture overhaul</strong> toward a steady-state production solution. By that point we expect to have a much clearer picture &mdash; the exploratory breadth of two engines and multiple candidate methods will have narrowed toward the approach that actually works on our data at full scale. The overhaul is intentionally left open in scope here; it will be defined when we reach it, informed by everything learned in the interim rather than guessed at now.</p>
+      </div>
+      <div class="callout">
+        <div class="ct">Scope beyond this map</div>
+        <div class="cb">This roadmap runs through Q4 2027. The architecture overhaul and any external-data enrichment extend beyond that horizon and are deliberately not scheduled in detail &mdash; they depend on the data milestone and on which techniques survive, neither of which is knowable today. They are marked as directions, not dated commitments.</div>
+      </div>
+    </div>
+
+  </section>
+</main>
+
+<footer class="footer">
+  <span>Star Mountain Capital</span>
+  <span>Confidential — Internal Use Only</span>
+  <span>June 2026</span>
+</footer>
+
+<script>
+(function () {
+  var buttons = document.querySelectorAll('.tab-btn');
+  var panels  = document.querySelectorAll('.tab-content');
+  buttons.forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      var target = btn.getAttribute('data-tab');
+      buttons.forEach(function (b) { b.classList.toggle('active', b === btn); });
+      panels.forEach(function (p) { p.classList.toggle('active', p.id === target); });
+      window.scrollTo({ top: 0, behavior: 'auto' });
+    });
+  });
+})();
+</script>
+
+</body>
+</html>
